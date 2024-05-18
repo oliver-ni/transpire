@@ -1,5 +1,6 @@
 {
   imports = [
-    ./argocd.nix
+    ./guestbook.nix
+    ./hedgedoc.nix
   ];
 }
