@@ -8,13 +8,14 @@
   outputs = { self, nixpkgs }:
     let
       pkgs = import nixpkgs { system = "aarch64-darwin"; };
+      transpire = pkgs.callPackage ./lib { };
 
       result = pkgs.lib.evalModules {
         modules = [
           ./modules
           ./example/argocd.nix
         ];
-        specialArgs = { inherit pkgs; };
+        specialArgs = { inherit pkgs transpire; };
       };
     in
     {
