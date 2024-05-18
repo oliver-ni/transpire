@@ -13,13 +13,13 @@
       result = pkgs.lib.evalModules {
         modules = [
           ./modules/base.nix
-          ./modules
+          ./modules/build.nix
           ./example/argocd.nix
         ];
         specialArgs = { inherit pkgs transpire; };
       };
     in
     {
-      packages.aarch64-darwin.default = (pkgs.formats.yaml { }).generate "output.yaml" result.config;
+      packages.aarch64-darwin.default = result.config.build.cluster;
     };
 }
