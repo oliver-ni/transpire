@@ -24,8 +24,10 @@ let
   builtObjects = builtins.mapAttrs
     (namespace: nsModule: concatMapAttrsToList
       (apiVersion: kinds: concatMapAttrsToList
-        (kind: objects: lib.mapAttrsToList
-          (name: object: buildObject (transformObject { inherit namespace apiVersion kind name object; }))
+        (kind: objects: concatMapAttrsToList
+          (name: object: lib.optional
+            (object != null)
+            (buildObject (transformObject { inherit namespace apiVersion kind name object; })))
           objects)
         kinds)
       nsModule.objects)

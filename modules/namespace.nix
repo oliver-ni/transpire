@@ -3,7 +3,7 @@
 let
   namespace = name;
 
-  objectType = (pkgs.formats.yaml { }).type;
+  objectType = lib.types.nullOr (pkgs.formats.yaml { }).type;
   objectsType = lib.types.attrsOf objectType;
   kindsType = lib.types.attrsOf objectsType;
 
@@ -33,6 +33,7 @@ in
     helmCharts = lib.mkOption {
       type = lib.types.attrsOf helmChartType;
       description = "List of Helm charts to deploy.";
+      default = { };
     };
   };
 
