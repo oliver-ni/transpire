@@ -54,10 +54,12 @@
         rules = [{
           host = "dev-notes.ocf.berkeley.edu";
           http.paths = [{
-            pathType = "Prefix";
             path = "/";
-            backend.service.name = "hedgedoc";
-            backend.service.port.number = 80;
+            pathType = "Prefix";
+            backend.service = {
+              name = "hedgedoc";
+              port.number = 80;
+            };
           }];
         }];
         tls = [{
