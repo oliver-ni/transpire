@@ -3,11 +3,11 @@
 let
   namespace = name;
 
-  resource = (pkgs.formats.yaml { }).type;
-  kindGroup = lib.types.attrsOf resource;
-  apiVersionGroup = lib.types.attrsOf kindGroup;
+  objectType = (pkgs.formats.yaml { }).type;
+  objectsType = lib.types.attrsOf objectType;
+  kindsType = lib.types.attrsOf objectsType;
 
-  helmChart = lib.types.submoduleWith {
+  helmChartType = lib.types.submoduleWith {
     modules = [ ./helm-chart.nix ];
     inherit specialArgs;
   };
@@ -25,13 +25,13 @@ in
   options = {
     # TODO: Can we somehow generate this? Maybe from the OpenAPI spec?
     objects = lib.mkOption {
-      type = lib.types.attrsOf apiVersionGroup;
+      type = lib.types.attrsOf kindsType;
       description = "Attribute set of objects to deploy. Should be in the format <apiVersion>.<kind>.<name> = { ... }.";
       default = { };
     };
 
     helmCharts = lib.mkOption {
-      type = lib.types.attrsOf helmChart;
+      type = lib.types.attrsOf helmChartType;
       description = "List of Helm charts to deploy.";
     };
   };

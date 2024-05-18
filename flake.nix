@@ -12,6 +12,7 @@
 
       result = pkgs.lib.evalModules {
         modules = [
+          ./modules/base.nix
           ./modules
           ./example/argocd.nix
         ];
