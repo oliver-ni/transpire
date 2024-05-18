@@ -1,4 +1,4 @@
-{ name, pkgs, lib, config, transpire, specialArgs, ... }:
+{ name, pkgs, lib, config, util, specialArgs, ... }:
 
 let
   namespace = name;
@@ -12,7 +12,7 @@ let
     inherit specialArgs;
   };
 
-  buildChartArgs = name: value: {
+  helmBuildArgs = name: value: {
     inherit name namespace;
     inherit (value) chart valuesFile includeCRDs skipTests noHooks;
   };
@@ -39,8 +39,8 @@ in
   config = {
     objects = lib.mkMerge (lib.mapAttrsToList
       (name: value:
-        lib.pipe (buildChartArgs name value) [
-          transpire.buildChart
+        lib.pipe (helmBuildArgs name value) [
+          util.buildHelmChart
           builtins.readFile
           (lib.removeSuffix "\n")
           (lib.splitString "\n")

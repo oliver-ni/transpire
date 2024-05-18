@@ -1,10 +1,10 @@
-{ transpire, ... }:
+{ util, ... }:
 
 {
   namespaces.argocd = {
     helmCharts = {
       argocd = {
-        chart = transpire.fetchFromHelm {
+        chart = util.fetchFromHelm {
           repo = "https://argoproj.github.io/argo-helm";
           name = "argo-cd";
           version = "6.9.2";
