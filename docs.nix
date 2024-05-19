@@ -28,6 +28,8 @@ stdenvNoCC.mkDerivation {
   buildPhase = ''
     mkdir -p docs
     cat ${optionsDoc.optionsCommonMark} > docs/index.md
+    # MkDocs isn't CommonMark-compliant, replace \<name> with &lt;name&gt;
+    sed -i -e 's/\\<name>/\&lt;name\&gt;/g' docs/index.md
     mkdocs build
   '';
 
