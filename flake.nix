@@ -29,5 +29,9 @@
           clusterFile = args: (evalModules args).config.build.clusterFile;
         };
       });
+
+      packages = forAllSystems (pkgs: transpire: {
+        docs = pkgs.callPackage ./docs.nix { inherit transpire; };
+      });
     };
 }
