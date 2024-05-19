@@ -22,7 +22,7 @@ For now, only flakes are supported. Transpire exports a function `lib.<system>.b
   inputs.transpire.url = "github:oliver-ni/transpire";
 
   outputs = { transpire, ... }: {
-    packages.x86-64-linux.default = transpire.lib.x86-64-linux.build.cluster {
+    packages.x86_64-linux.default = transpire.lib.x86_64-linux.build.cluster {
       modules = [ ./cluster.nix ];
     };
   };
