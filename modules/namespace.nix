@@ -1,4 +1,4 @@
-{ name, pkgs, lib, config, util, specialArgs, ... }:
+{ name, pkgs, lib, config, transpire, specialArgs, ... }:
 
 let
   namespace = name;
@@ -41,7 +41,7 @@ in
     objects = lib.mkMerge (lib.mapAttrsToList
       (name: value:
         lib.pipe (helmBuildArgs name value) [
-          util.buildHelmChart
+          transpire.buildHelmChart
           builtins.readFile
           (lib.removeSuffix "\n")
           (lib.splitString "\n")

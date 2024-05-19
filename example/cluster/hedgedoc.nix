@@ -1,9 +1,9 @@
-{ util, ... }:
+{ transpire, ... }:
 
 {
   namespaces.example-hedgedoc = {
     helmCharts.postgres = {
-      chart = util.fetchFromHelm {
+      chart = transpire.fetchFromHelm {
         repo = "https://charts.bitnami.com/bitnami";
         name = "postgresql";
         version = "15.3.3";

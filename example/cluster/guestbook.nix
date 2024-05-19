@@ -1,9 +1,9 @@
-{ util, ... }:
+{ transpire, ... }:
 
 {
   namespaces.example-guestbook = {
     helmCharts.guestbook = {
-      chart = util.fetchFromHelm {
+      chart = transpire.fetchFromHelm {
         repo = "https://cloudnativeapp.github.io/charts/curated/";
         name = "guestbook";
         version = "0.2.0";
