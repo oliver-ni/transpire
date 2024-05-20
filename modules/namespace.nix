@@ -22,6 +22,8 @@ let
   });
 in
 {
+  imports = [ ./openapi.nix ];
+
   options = {
     # TODO: Can we somehow generate this? Maybe from the OpenAPI spec?
     objects = lib.mkOption {
