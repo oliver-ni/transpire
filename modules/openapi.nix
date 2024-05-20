@@ -69,7 +69,7 @@ let
 
   resourceDefs = lib.mapAttrsToList
     (name: path: rec {
-      apiVersion = with path.post.x-kubernetes-group-version-kind; "${group}/${version}";
+      apiVersion = lib.removePrefix "/" (with path.post.x-kubernetes-group-version-kind; "${group}/${version}");
       name = path.post.x-kubernetes-group-version-kind.kind;
       value = mkResourceOption name (defType defTypes (builtins.head path.post.parameters).schema);
     })
