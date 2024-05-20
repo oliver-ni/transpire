@@ -31,7 +31,7 @@
       });
 
       packages = forAllSystems (pkgs: transpire: {
-        docs = pkgs.callPackage ./docs.nix { inherit transpire; };
+        docs = pkgs.callPackage ./docs { inherit transpire; };
       });
     };
 }
