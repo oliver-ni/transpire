@@ -59,11 +59,21 @@ let
     (name: def: overridedTypes.${name} or (defType self def))
     spec.definitions);
 
-  # We only care about top-level resource definitions. These have the
-  # x-kubernetes-group-version-kind field.
-  resourceDefs = lib.filterAttrs
-    (name: def: def ? "x-kubernetes-group-version-kind")
-    spec.definitions;
+  # We only care about real resource definitions. These are the ones with POST
+  # operations. Also, ensure we have x-kubernetes-group-version-kind.
+  resourcePaths = lib.filterAttrs
+    (name: path: path ? post
+      && path.post.x-kubernetes-action == "post"
+      && path.post ? x-kubernetes-group-version-kind)
+    spec.paths;
+
+  resourceDefs = lib.mapAttrsToList
+    (name: path: rec {
+      apiVersion = with path.post.x-kubernetes-group-version-kind; "${group}/${version}";
+      name = path.post.x-kubernetes-group-version-kind.kind;
+      value = mkResourceOption name (defType defTypes (builtins.head path.post.parameters).schema);
+    })
+    resourcePaths;
 
   # This function makes Nix options with corresponding types.
   mkResourceOption = name: type: lib.mkOption {
@@ -71,24 +81,11 @@ let
     description = "${name} resources";
     default = { };
   };
-
-  # Each definition may be associated with zero, one, or even multiple resources
-  # (group, version, kind tuples). We want our resulting options to be in the
-  # form <group>/<version>.<kind> instead of the definition name.
-  allResources = transpire.util.concatMapAttrsToList
-    (name: def: map
-      ({ group, version, kind }: {
-        apiVersion = lib.removePrefix "/" "${group}/${version}";
-        name = kind;
-        value = mkResourceOption kind (defTypes.${name});
-      })
-      (lib.toList (def.x-kubernetes-group-version-kind or [ ])))
-    spec.definitions;
 in
 {
   options.resources = lib.mapAttrs
     (name: value: builtins.listToAttrs value)
     (builtins.groupBy
       (resource: resource.apiVersion)
-      allResources);
+      resourceDefs);
 }
