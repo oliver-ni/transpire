@@ -39,7 +39,7 @@ Transpire is a work in progress! Here's what I'm working on:
 
 - [x] Basic options for directly converting Nix manifests to YAML
 - [x] Fetching and templating Helm charts
-- [ ] Generating typed options based on Kubernetes OpenAPI spec
+- [x] Generating typed options based on Kubernetes OpenAPI spec
 - [ ] Converting between lists indexed by `name` and attribute sets
 - [ ] Built-in modules and functions for simple use cases
 - [ ] A better secrets story
