@@ -36,7 +36,9 @@ let
   defType = self: def:
     if def ? "$ref" then refType self def."$ref"
     else if def ? type then
-      if def.type == "string" then lib.types.str
+      if def.type == "string" then
+        if def.format or "" == "int-or-string" then lib.types.either lib.types.int lib.types.str
+        else lib.types.str
       else if def.type == "integer" then lib.types.int
       else if def.type == "number" then
         if def.format == "int32" then lib.types.ints.s32
