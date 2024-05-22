@@ -40,7 +40,7 @@ in
   };
 
   config = {
-    objects = lib.mkMerge (lib.mapAttrsToList
+    resources = lib.mkMerge (lib.mapAttrsToList
       (name: value:
         lib.pipe (helmBuildArgs name value) [
           transpire.buildHelmChart

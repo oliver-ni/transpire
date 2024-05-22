@@ -90,4 +90,6 @@ in
     (builtins.groupBy
       (resource: resource.apiVersion)
       resourceDefs);
+
+  config.objects = config.resources;
 }
