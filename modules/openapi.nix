@@ -1,8 +1,17 @@
-{ lib, ... }:
+{ lib, config, ... }:
 
 let
   openapi = ./openapi.json;
   spec = builtins.fromJSON (builtins.readFile openapi);
+
+  mkOptionNotRequired = { type, ... }@args: lib.mkOption (args // {
+    type = lib.types.nullOr type;
+    default = null;
+  });
+
+  mkOptionMaybeRequired = required: args:
+    let mkFn = if required then lib.mkOption else mkOptionNotRequired;
+    in mkFn args;
 
   # OpenAPI arrays become lists in Nix.
   arrayType = self: def: lib.types.listOf (defType self def.items);
@@ -10,15 +19,12 @@ let
   # If an OpenAPI object has properties, we define a submodule and recursively
   # call `defType` to convert each property definition into a Nix type.
   objectWithPropertiesType = self: def: lib.types.submodule {
-    options = (lib.mapAttrs
-      (name: propDef: lib.mkOption {
-        type =
-          if builtins.elem name (def.required or [ ])
-          then defType self propDef
-          else lib.types.nullOr (defType self propDef);
+    options = lib.mapAttrs
+      (name: propDef: mkOptionMaybeRequired (builtins.elem name (def.required or [ ])) {
+        type = defType self propDef;
         description = propDef.description or name;
       })
-      def.properties);
+      def.properties;
   };
 
   # If an OpenAPI object has additionalProperties, it becomes an attribute set.

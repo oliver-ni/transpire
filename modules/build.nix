@@ -3,13 +3,24 @@
 let
   yaml = pkgs.formats.yaml { };
 
+  # Recursively remove any keys where the value is `null` from all nested
+  # attrsets, including those in lists.
+  removeNullRecursive = value:
+    if builtins.isList value then
+      map removeNullRecursive value
+    else if builtins.isAttrs value then
+      lib.filterAttrsRecursive
+        (name: value: value != null)
+        (lib.mapAttrsRecursive (_: removeNullRecursive) value)
+    else value;
+
   # Like lib.mapAttrsToList, but flattens the resulting list
   concatMapAttrsToList = f: attrs: builtins.concatMap
     (name: f name attrs.${name})
     (builtins.attrNames attrs);
 
-  # Generates a unique name for an object
-  generateName = object: "${object.metadata.name}_${object.kind}_${object.apiVersion}_${object.metadata.namespace}.yaml";
+  # Generates a unique filename for an object
+  generateFilename = object: "${object.metadata.name}_${object.kind}_${object.apiVersion}_${object.metadata.namespace}.yaml";
 
   # Adds metadata from the object's config path
   transformObject = { namespace, apiVersion, kind, name, object }: object // {
@@ -18,20 +29,20 @@ let
   };
 
   # Builds a YAML manifest from an object
-  buildObject = (object: yaml.generate (generateName object) object);
+  buildObject = (object:
+    let obj = transformObject object;
+    in yaml.generate (generateFilename obj) obj);
 
   # Transform structured config to a list of raw objects by namespace
   builtObjects = builtins.mapAttrs
     (namespace: nsModule: concatMapAttrsToList
       (apiVersion: kinds: concatMapAttrsToList
-        (kind: objects: concatMapAttrsToList
-          (name: object: lib.optional
-            (object != null)
-            (buildObject (transformObject { inherit namespace apiVersion kind name object; })))
+        (kind: objects: lib.mapAttrsToList
+          (name: object: (buildObject { inherit namespace apiVersion kind name object; }))
           objects)
         kinds)
       nsModule.objects)
-    config.namespaces;
+    (removeNullRecursive config.namespaces);
 in
 {
   options = {
