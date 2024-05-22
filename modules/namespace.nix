@@ -32,7 +32,7 @@ in
       default = { };
     };
 
-    helmCharts = lib.mkOption {
+    helmReleases = lib.mkOption {
       type = lib.types.attrsOf helmChartType;
       description = "List of Helm charts to deploy.";
       default = { };
@@ -51,6 +51,6 @@ in
           (map objectToConfig)
           lib.mkMerge
         ])
-      config.helmCharts);
+      config.helmReleases);
   };
 }

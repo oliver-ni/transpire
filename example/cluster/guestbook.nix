@@ -2,7 +2,7 @@
 
 {
   namespaces.example-guestbook = {
-    helmCharts.guestbook = {
+    helmReleases.guestbook = {
       chart = transpire.fetchFromHelm {
         repo = "https://cloudnativeapp.github.io/charts/curated/";
         name = "guestbook";

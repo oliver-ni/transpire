@@ -2,7 +2,7 @@
 
 {
   namespaces.example-hedgedoc = {
-    helmCharts.postgres = {
+    helmReleases.postgres = {
       chart = transpire.fetchFromHelm {
         repo = "https://charts.bitnami.com/bitnami";
         name = "postgresql";
