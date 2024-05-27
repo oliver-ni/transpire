@@ -17,12 +17,9 @@
       lib = forAllSystems (pkgs: transpire: rec {
         fetchFromHelm = pkgs.callPackage ./lib/fetch-from-helm.nix { };
         buildHelmChart = pkgs.callPackage ./lib/build-helm-chart.nix { };
+        evalModules = pkgs.callPackage ./lib/eval-modules.nix { inherit transpire; };
 
-        evalModules = { modules ? [ ], specialArgs ? { } }: pkgs.lib.evalModules {
-          modules = [ ./modules/base.nix ./modules/build.nix ] ++ modules;
-          specialArgs = { inherit pkgs transpire; } // specialArgs;
-        };
-
+        # Shortcuts for the most common use cases
         build = {
           __functor = args: (evalModules args).config.build;
           cluster = args: (evalModules args).config.build.cluster;

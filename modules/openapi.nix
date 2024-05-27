@@ -1,8 +1,9 @@
-{ lib, config, ... }:
+{ lib, config, openApiSpec, ... }:
 
 let
-  openapi = ./openapi.json;
-  spec = builtins.fromJSON (builtins.readFile openapi);
+  enable = openApiSpec != null;
+
+  spec = builtins.fromJSON (builtins.readFile openApiSpec);
 
   mkOptionNotRequired = { type, ... }@args: lib.mkOption (args // {
     type = lib.types.nullOr type;
@@ -90,12 +91,13 @@ let
     default = { };
   };
 in
-{
-  options.resources = lib.mapAttrs
+if enable then {
+  options.resources = (lib.mapAttrs
     (name: value: builtins.listToAttrs value)
     (builtins.groupBy
       (resource: resource.apiVersion)
-      resourceDefs);
+      resourceDefs));
 
   config.objects = config.resources;
 }
+else lib.warn "No OpenAPI spec specified, type-checked `resources` option is turned off." { }

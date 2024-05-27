@@ -1,4 +1,4 @@
-{ name, pkgs, lib, config, transpire, specialArgs, ... }:
+{ name, pkgs, lib, config, transpire, openApiSpec, specialArgs, ... }:
 
 let
   namespace = name;
@@ -20,6 +20,8 @@ let
   objectToConfig = ({ apiVersion, kind, metadata, ... }@obj: {
     ${apiVersion}.${kind}.${metadata.name} = obj;
   });
+
+  resourcesKey = if openApiSpec != null then "resources" else "objects";
 in
 {
   imports = [ ./openapi.nix ];
@@ -40,7 +42,7 @@ in
   };
 
   config = {
-    resources = lib.mkMerge (lib.mapAttrsToList
+    ${resourcesKey} = lib.mkMerge (lib.mapAttrsToList
       (name: value:
         lib.pipe (helmBuildArgs name value) [
           transpire.buildHelmChart
