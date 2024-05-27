@@ -9,6 +9,7 @@
   outputs = { flake-utils, transpire, ... }: flake-utils.lib.eachDefaultSystem (system: {
     packages.default = transpire.lib.${system}.build.cluster {
       modules = [ ./cluster ];
+      openApiSpec = transpire.packages.${system}."openapi-v1.30.1";
     };
   });
 }

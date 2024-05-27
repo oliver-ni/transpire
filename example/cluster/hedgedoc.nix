@@ -15,7 +15,7 @@
       };
     };
 
-    objects."apps/v1".Deployment.hedgedoc.spec = {
+    resources."apps/v1".Deployment.hedgedoc.spec = {
       replicas = 1;
       selector.matchLabels.app = "hedgedoc";
       template = {
@@ -40,12 +40,12 @@
       };
     };
 
-    objects.v1.Service.hedgedoc.spec = {
+    resources.v1.Service.hedgedoc.spec = {
       ports = [{ port = 80; targetPort = 3000; }];
       selector.app = "hedgedoc";
     };
 
-    objects."networking.k8s.io/v1".Ingress.hedgedoc = {
+    resources."networking.k8s.io/v1".Ingress.hedgedoc = {
       metadata.annotations = {
         "ingress.kubernetes.io/force-ssl-redirect" = "true";
         "cert-manager.io/cluster-issuer" = "letsencrypt";
