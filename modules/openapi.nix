@@ -21,7 +21,10 @@ let
   # call `defType` to convert each property definition into a Nix type.
   objectWithPropertiesType = self: def: lib.types.submodule {
     options = lib.mapAttrs
-      (name: propDef: mkOptionMaybeRequired (builtins.elem name (def.required or [ ])) {
+      # FIXME: The top-level `metadata` is populated by the config path, so we
+      # make it not required, but this hack also makes nested `metadata` keys
+      # not required. We should find a better way to handle this.
+      (name: propDef: mkOptionMaybeRequired (name != "metadata" && builtins.elem name (def.required or [ ])) {
         type = defType self propDef;
         description = propDef.description or name;
       })
