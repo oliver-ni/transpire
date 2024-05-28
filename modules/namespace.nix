@@ -50,6 +50,7 @@ in
           (lib.removeSuffix "\n")
           (lib.splitString "\n")
           (map builtins.fromJSON)
+          (builtins.filter (s: s != null))
           (map objectToConfig)
           lib.mkMerge
         ])
