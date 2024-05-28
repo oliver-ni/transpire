@@ -44,19 +44,23 @@ let
   refType = self: ref: self.${lib.removePrefix "#/definitions/" ref};
 
   defType = self: def:
+    let
+      type = def.type;
+      format = def.format or null;
+    in
     if def ? "$ref" then refType self def."$ref"
     else if def ? type then
-      if def.type == "string" then
-        if def.format or "" == "int-or-string" then lib.types.either lib.types.int lib.types.str
+      if type == "string" then
+        if format == "int-or-string" then lib.types.either lib.types.int lib.types.str
         else lib.types.str
-      else if def.type == "integer" then lib.types.int
-      else if def.type == "number" then
-        if def.format == "int32" then lib.types.ints.s32
-        else if def.format == "int64" then lib.types.ints.s64
-        else lib.types.float
-      else if def.type == "boolean" then lib.types.bool
-      else if def.type == "array" then arrayType self def
-      else if def.type == "object" then objectType self def
+      else if type == "integer" then lib.types.int
+      else if type == "number" then
+        if format == "int32" then lib.types.ints.s32
+        else if format == "int64" then lib.types.ints.s64
+        else lib.types.number
+      else if type == "boolean" then lib.types.bool
+      else if type == "array" then arrayType self def
+      else if type == "object" then objectType self def
       else throw "Unsupported type: ${def.type}"
     else lib.types.anything;
 
