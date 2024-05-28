@@ -20,7 +20,7 @@ let
     (builtins.attrNames attrs);
 
   # Generates a unique filename for an object
-  generateFilename = object: "${object.metadata.name}_${object.kind}_${object.apiVersion}_${object.metadata.namespace}.yaml";
+  generateFilename = object: "${object.metadata.namespace}_${object.apiVersion}_${object.kind}_${object.metadata.name}.yaml";
 
   # Adds metadata from the object's config path
   transformObject = { namespace, apiVersion, kind, name, object }: object // {
