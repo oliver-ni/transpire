@@ -13,5 +13,11 @@ in
       description = "Namespaces containing scoped objects.";
       default = { };
     };
+
+    transforms = lib.mkOption {
+      type = lib.types.listOf (lib.types.functionTo lib.types.attrs);
+      description = "Transforms to apply to the objects.";
+      default = [ ];
+    };
   };
 }

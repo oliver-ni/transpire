@@ -23,14 +23,14 @@ let
   generateFilename = object: "${object.metadata.namespace}_${object.apiVersion}_${object.kind}_${object.metadata.name}.yaml";
 
   # Adds metadata from the object's config path
-  transformObject = { namespace, apiVersion, kind, name, object }: object // {
+  tagObject = { namespace, apiVersion, kind, name, object }: object // {
     inherit apiVersion kind;
     metadata = { inherit namespace name; } // (object.metadata or { });
   };
 
   # Builds a YAML manifest from an object
   buildObject = (object:
-    let obj = transformObject object;
+    let obj = lib.pipe (tagObject object) config.transforms;
     in yaml.generate (generateFilename obj) obj);
 
   # Transform structured config to a list of raw objects by namespace
