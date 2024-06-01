@@ -29,24 +29,33 @@ let
   };
 
   # Builds a YAML manifest from an object
-  buildObject = (object:
-    let obj = lib.pipe (tagObject object) config.transforms;
-    in yaml.generate (generateFilename obj) obj);
+  buildObject = object: yaml.generate (generateFilename object) object;
 
   # Transform structured config to a list of raw objects by namespace
-  builtObjects = builtins.mapAttrs
+  rawObjectsByNs = builtins.mapAttrs
     (namespace: nsModule: concatMapAttrsToList
       (apiVersion: kinds: concatMapAttrsToList
         (kind: objects: lib.mapAttrsToList
-          (name: object: (buildObject { inherit namespace apiVersion kind name object; }))
+          (name: object: lib.pipe
+            (tagObject { inherit namespace apiVersion kind name object; })
+            config.transforms)
           objects)
         kinds)
       nsModule.objects)
     (removeNullRecursive config.namespaces);
+
+  builtObjectsByNs = builtins.mapAttrs
+    (namespace: map buildObject)
+    rawObjectsByNs;
 in
 {
   options = {
     build = {
+      objects = lib.mkOption {
+        type = lib.types.listOf lib.types.attrs;
+        readOnly = true;
+        description = "(Output) List of all raw objects.";
+      };
       namespaces = lib.mkOption {
         type = lib.types.attrsOf lib.types.package;
         readOnly = true;
@@ -66,7 +75,8 @@ in
   };
 
   config.build = rec {
-    namespaces = builtins.mapAttrs pkgs.linkFarmFromDrvs builtObjects;
+    objects = lib.concatLists (builtins.attrValues rawObjectsByNs);
+    namespaces = builtins.mapAttrs pkgs.linkFarmFromDrvs builtObjectsByNs;
     cluster = pkgs.linkFarmFromDrvs "cluster" (lib.attrValues namespaces);
     clusterFile = pkgs.runCommand "cluster.yaml" { } ''
       for i in ${cluster}/*/*.yaml; do
