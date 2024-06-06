@@ -14,7 +14,7 @@ lib.makeOverridable (
 
     buildCommand = ''
       export HELM_CACHE_HOME="$TMP/.cache"
-      helm pull --repo ${repo} ${name} --untar
+      helm pull --repo ${repo} ${name} --version ${version} --untar
       mv ${name} $out
     '';
 
