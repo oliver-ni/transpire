@@ -1,4 +1,4 @@
-{ lib, stdenvNoCC, kubernetes-helm, yq-go }:
+{ lib, stdenvNoCC, kubernetes-helm, yaml2json }:
 
 lib.makeOverridable (
   { name
@@ -12,7 +12,7 @@ lib.makeOverridable (
 
   stdenvNoCC.mkDerivation {
     name = "helm-${chart.version}-${name}";
-    nativeBuildInputs = [ kubernetes-helm yq-go ];
+    nativeBuildInputs = [ kubernetes-helm yaml2json ];
 
     buildCommand = ''
       helm template ${name} ${chart} \
@@ -21,7 +21,7 @@ lib.makeOverridable (
         ${lib.optionalString includeCRDs "--include-crds"} \
         ${lib.optionalString skipTests "--skip-tests"} \
         ${lib.optionalString noHooks "--no-hooks"} \
-        | yq -o=json -I=0 > $out
+        | yaml2json > $out
     '';
   }
 )
