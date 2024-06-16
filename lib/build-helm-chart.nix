@@ -6,7 +6,7 @@ lib.makeOverridable (
   , namespace ? null
   , valuesFile ? null
   , includeCRDs ? false
-  , skipTests ? false
+  , skipTests ? true
   , noHooks ? false
   }:
 
