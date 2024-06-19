@@ -27,11 +27,27 @@ let
     ];
 
   resourcesKey = if openApiSpec != null then "resources" else "objects";
+
+  resourcesFromManifests = lib.mkMerge (map
+    ({ apiVersion, kind, metadata, ... }@obj: {
+      ${apiVersion}.${kind}.${metadata.name} = obj;
+    })
+    (builtins.concatMap readYAMLDocuments config.manifests));
+
+  resourcesFromCreateNamespace = lib.mkIf config.createNamespace {
+    v1.Namespace."${namespace}" = { };
+  };
 in
 {
   imports = [ ./openapi.nix ];
 
   options = {
+    createNamespace = lib.mkOption {
+      type = lib.types.bool;
+      description = "Whether to create the v1.Namespace resource.";
+      default = true;
+    };
+
     objects = lib.mkOption {
       type = lib.types.attrsOf kindsType;
       description = "Attribute set of objects to deploy. Should be in the format <apiVersion>.<kind>.<name> = { ... }.";
@@ -59,10 +75,9 @@ in
       })
       config.helmReleases;
 
-    ${resourcesKey} = lib.mkMerge (map
-      ({ apiVersion, kind, metadata, ... }@obj: {
-        ${apiVersion}.${kind}.${metadata.name} = obj;
-      })
-      (builtins.concatMap readYAMLDocuments config.manifests));
+    ${resourcesKey} = lib.mkMerge [
+      resourcesFromCreateNamespace
+      resourcesFromManifests
+    ];
   };
 }
