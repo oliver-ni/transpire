@@ -34,7 +34,6 @@ let
   # If an OpenAPI object has additionalProperties, it becomes an attribute set.
   # Otherwise, we call `objectWithPropertiesType` to make a submodule.
   # TODO: Can we support BOTH properties AND additionalProperties?
-  # TODO: Look into difference between null and unset
   objectType = self: def:
     if def ? additionalProperties then lib.types.attrsOf (defType self def.additionalProperties)
     else if def ? properties then objectWithPropertiesType self def
