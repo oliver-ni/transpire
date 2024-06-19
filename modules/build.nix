@@ -47,7 +47,9 @@ let
   # `pkgs.linkFarmFromDrvs` to create the output derivations. However, that 
   # created a derivation for each object, which was slow.
 
-  pathEscape = text: builtins.replaceStrings [ "/" "'" "\"" "<" ">" ] [ "-" "-" "-" "-" "-" ] text;
+  pathEscape = text: builtins.concatStringsSep "-"
+    (builtins.filter builtins.isString
+      (builtins.split "[^A-Za-z0-9-_\.]" text));
 
   buildObjectCommand = object:
     let
