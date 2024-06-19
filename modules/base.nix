@@ -3,6 +3,7 @@
 let
   namespaceType = lib.types.submoduleWith {
     modules = [ ./namespace.nix ];
+    shorthandOnlyDefinesConfig = true;
     inherit specialArgs;
   };
 in
