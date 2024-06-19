@@ -12,14 +12,19 @@ let
     inherit specialArgs;
   };
 
-  helmBuildArgs = name: value: {
-    inherit name namespace;
-    inherit (value) chart valuesFile includeCRDs skipTests noHooks;
-  };
-
-  objectToConfig = ({ apiVersion, kind, metadata, ... }@obj: {
-    ${apiVersion}.${kind}.${metadata.name} = obj;
-  });
+  # Reads one or more documents separated by "---" from a YAML file. Uses IFD.
+  readYAMLDocuments = path:
+    let
+      json = pkgs.runCommand "${path}.yaml" { }
+        "${pkgs.yaml2json}/bin/yaml2json < ${lib.escapeShellArg path} > $out";
+    in
+    lib.pipe json [
+      builtins.readFile
+      (lib.removeSuffix "\n")
+      (lib.splitString "\n")
+      (map builtins.fromJSON)
+      (builtins.filter (s: s != null))
+    ];
 
   resourcesKey = if openApiSpec != null then "resources" else "objects";
 in
@@ -27,10 +32,15 @@ in
   imports = [ ./openapi.nix ];
 
   options = {
-    # TODO: Can we somehow generate this? Maybe from the OpenAPI spec?
     objects = lib.mkOption {
       type = lib.types.attrsOf kindsType;
       description = "Attribute set of objects to deploy. Should be in the format <apiVersion>.<kind>.<name> = { ... }.";
+      default = { };
+    };
+
+    manifests = lib.mkOption {
+      type = lib.types.listOf lib.types.pathInStore;
+      description = "List of raw manifests to parse. Useful for fetching from an external source.";
       default = { };
     };
 
@@ -42,18 +52,17 @@ in
   };
 
   config = {
-    ${resourcesKey} = lib.mkMerge (lib.mapAttrsToList
-      (name: value:
-        lib.pipe (helmBuildArgs name value) [
-          transpire.buildHelmChart
-          builtins.readFile
-          (lib.removeSuffix "\n")
-          (lib.splitString "\n")
-          (map builtins.fromJSON)
-          (builtins.filter (s: s != null))
-          (map objectToConfig)
-          lib.mkMerge
-        ])
-      config.helmReleases);
+    manifests = lib.mapAttrsToList
+      (name: value: transpire.buildHelmChart {
+        inherit name namespace;
+        inherit (value) chart valuesFile includeCRDs skipTests noHooks;
+      })
+      config.helmReleases;
+
+    ${resourcesKey} = lib.mkMerge (map
+      ({ apiVersion, kind, metadata, ... }@obj: {
+        ${apiVersion}.${kind}.${metadata.name} = obj;
+      })
+      (builtins.concatMap readYAMLDocuments config.manifests));
   };
 }

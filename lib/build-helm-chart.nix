@@ -1,4 +1,4 @@
-{ lib, stdenvNoCC, kubernetes-helm, yaml2json }:
+{ lib, stdenvNoCC, kubernetes-helm }:
 
 lib.makeOverridable (
   { name
@@ -12,7 +12,7 @@ lib.makeOverridable (
 
   stdenvNoCC.mkDerivation {
     name = "helm-${chart.version}-${name}";
-    nativeBuildInputs = [ kubernetes-helm yaml2json ];
+    nativeBuildInputs = [ kubernetes-helm ];
 
     buildCommand = ''
       helm template ${name} ${chart} \
@@ -20,8 +20,7 @@ lib.makeOverridable (
         ${lib.optionalString (valuesFile != null) "--values ${valuesFile}"} \
         ${lib.optionalString includeCRDs "--include-crds"} \
         ${lib.optionalString skipTests "--skip-tests"} \
-        ${lib.optionalString noHooks "--no-hooks"} \
-        | yaml2json > $out
+        ${lib.optionalString noHooks "--no-hooks"} > $out
     '';
   }
 )
