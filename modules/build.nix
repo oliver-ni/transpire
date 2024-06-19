@@ -1,8 +1,6 @@
 { pkgs, lib, config, ... }:
 
 let
-  yaml = pkgs.formats.yaml { };
-
   # Recursively remove any keys where the value is `null` from all nested
   # attrsets, including those in lists.
   removeNullRecursive = value:
@@ -19,19 +17,13 @@ let
     (name: f name attrs.${name})
     (builtins.attrNames attrs);
 
-  # Generates a unique filename for an object
-  generateFilename = object: "${object.metadata.namespace}_${object.apiVersion}_${object.kind}_${object.metadata.name}.yaml";
-
   # Adds metadata from the object's config path
   tagObject = { namespace, apiVersion, kind, name, object }: object // {
     inherit apiVersion kind;
     metadata = { inherit namespace name; } // (object.metadata or { });
   };
 
-  # Builds a YAML manifest from an object
-  buildObject = object: yaml.generate (generateFilename object) object;
-
-  # Transform structured config to a list of raw objects by namespace
+  # Transforms structured config to a list of raw objects by namespace
   rawObjectsByNs = builtins.mapAttrs
     (namespace: nsModule: concatMapAttrsToList
       (apiVersion: kinds: concatMapAttrsToList
@@ -44,9 +36,36 @@ let
       nsModule.objects)
     (removeNullRecursive config.namespaces);
 
-  builtObjectsByNs = builtins.mapAttrs
-    (namespace: map buildObject)
+  # Generates a unique filename for an object
+  generateFilename = object: "${object.metadata.namespace}_${object.apiVersion}_${object.kind}_${object.metadata.name}.yaml";
+
+  # To create the output derivations, we generate a command for each object.
+  # Then, for every namespace, we join these commands into a single script that
+  # builds all objects in that namespace.
+
+  # Originally, we used `pkgs.formats.yaml` to generate the YAML files and 
+  # `pkgs.linkFarmFromDrvs` to create the output derivations. However, that 
+  # created a derivation for each object, which was slow.
+
+  pathEscape = text: builtins.replaceStrings [ "/" "'" "\"" "<" ">" ] [ "-" "-" "-" "-" "-" ] text;
+
+  buildObjectCommand = object:
+    let
+      filename = generateFilename object;
+      value = builtins.toJSON object;
+    in
+    "${pkgs.json2yaml}/bin/json2yaml <<< ${lib.escapeShellArg value} > $out/'${pathEscape filename}'";
+
+  buildCommandsByNs = builtins.mapAttrs
+    (namespace: map buildObjectCommand)
     rawObjectsByNs;
+
+  builtNamespaces = builtins.mapAttrs
+    (namespace: commands: pkgs.runCommand namespace { } ''
+      mkdir -p $out
+      ${builtins.concatStringsSep "\n" commands}
+    '')
+    buildCommandsByNs;
 in
 {
   options = {
@@ -76,7 +95,7 @@ in
 
   config.build = rec {
     objects = lib.concatLists (builtins.attrValues rawObjectsByNs);
-    namespaces = builtins.mapAttrs pkgs.linkFarmFromDrvs builtObjectsByNs;
+    namespaces = builtNamespaces;
     cluster = pkgs.linkFarmFromDrvs "cluster" (lib.attrValues namespaces);
     clusterFile = pkgs.runCommand "cluster.yaml" { } ''
       for i in ${cluster}/*/*.yaml; do
