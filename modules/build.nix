@@ -49,7 +49,7 @@ let
 
   pathEscape = text: builtins.concatStringsSep "-"
     (builtins.filter builtins.isString
-      (builtins.split "[^A-Za-z0-9-_\.]" text));
+      (builtins.split "[^A-Za-z0-9._-]" text));
 
   buildObjectCommand = object:
     let
