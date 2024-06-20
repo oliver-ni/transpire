@@ -12,6 +12,20 @@ let
     inherit specialArgs;
   };
 
+  manifestsFromHelm = lib.mapAttrsToList
+    (name: value: transpire.buildHelmChart {
+      inherit name namespace;
+      inherit (value) chart valuesFile includeCRDs skipTests noHooks;
+    })
+    config.helmReleases;
+
+  manifestsFromKustomize = lib.mapAttrsToList
+    (name: path: transpire.buildKustomization {
+      inherit name;
+      kustomization = path;
+    })
+    config.kustomizations;
+
   # Reads one or more documents separated by "---" from a YAML file. Uses IFD.
   readYAMLDocuments = path:
     let
@@ -65,15 +79,16 @@ in
       description = "Attribute set of Helm charts to deploy.";
       default = { };
     };
+
+    kustomizations = lib.mkOption {
+      type = lib.types.attrsOf lib.types.pathInStore;
+      description = "Attibute set of kustomizations to deploy.";
+      default = { };
+    };
   };
 
   config = {
-    manifests = lib.mapAttrsToList
-      (name: value: transpire.buildHelmChart {
-        inherit name namespace;
-        inherit (value) chart valuesFile includeCRDs skipTests noHooks;
-      })
-      config.helmReleases;
+    manifests = manifestsFromHelm ++ manifestsFromKustomize;
 
     ${resourcesKey} = lib.mkMerge [
       resourcesFromCreateNamespace

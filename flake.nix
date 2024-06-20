@@ -17,6 +17,7 @@
       lib = forAllSystems (pkgs: transpire: rec {
         fetchFromHelm = pkgs.callPackage ./lib/fetch-from-helm.nix { };
         buildHelmChart = pkgs.callPackage ./lib/build-helm-chart.nix { };
+        buildKustomization = pkgs.callPackage ./lib/build-kustomization.nix { };
         evalModules = pkgs.callPackage ./lib/eval-modules.nix { inherit transpire; };
 
         # Shortcuts for the most common use cases
