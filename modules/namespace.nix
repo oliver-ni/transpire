@@ -62,7 +62,7 @@ in
 
     helmReleases = lib.mkOption {
       type = lib.types.attrsOf helmChartType;
-      description = "List of Helm charts to deploy.";
+      description = "Attribute set of Helm charts to deploy.";
       default = { };
     };
   };
