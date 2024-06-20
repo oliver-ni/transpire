@@ -62,6 +62,12 @@ in
       default = true;
     };
 
+    overrideNamespace = lib.mkOption {
+      type = lib.types.bool;
+      description = "Whether to override metadata.namespace in resources.";
+      default = true;
+    };
+
     objects = lib.mkOption {
       type = lib.types.attrsOf kindsType;
       description = "Attribute set of objects to deploy. Should be in the format <apiVersion>.<kind>.<name> = { ... }.";

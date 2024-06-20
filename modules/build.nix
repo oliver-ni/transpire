@@ -18,10 +18,14 @@ let
     (builtins.attrNames attrs);
 
   # Adds metadata from the object's config path
-  tagObject = { namespace, apiVersion, kind, name, object }: object // {
-    inherit apiVersion kind;
-    metadata = { inherit namespace name; } // (object.metadata or { });
-  };
+  tagObject = { overrideNamespace }: { namespace, apiVersion, kind, name, object }:
+    let
+      metadata =
+        if overrideNamespace
+        then { inherit name; } // (object.metadata or { }) // { inherit namespace; }
+        else { inherit name namespace; } // (object.metadata or { });
+    in
+    object // { inherit apiVersion kind metadata; };
 
   # Transforms structured config to a list of raw objects by namespace
   rawObjectsByNs = builtins.mapAttrs
@@ -29,7 +33,9 @@ let
       (apiVersion: kinds: concatMapAttrsToList
         (kind: objects: lib.mapAttrsToList
           (name: object: lib.pipe
-            (tagObject { inherit namespace apiVersion kind name object; })
+            (tagObject
+              { inherit (nsModule) overrideNamespace; }
+              { inherit namespace apiVersion kind name object; })
             config.transforms)
           objects)
         kinds)
