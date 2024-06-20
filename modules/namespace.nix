@@ -8,7 +8,7 @@ let
   kindsType = lib.types.attrsOf objectsType;
 
   helmChartType = lib.types.submoduleWith {
-    modules = [ ./helm-chart.nix ];
+    modules = [ ./helm-release.nix ];
     inherit specialArgs;
   };
 
