@@ -15,10 +15,11 @@
     in
     {
       lib = forAllSystems (pkgs: transpire: rec {
-        fetchFromHelm = pkgs.callPackage ./lib/fetch-from-helm.nix { };
+        buildDocs = pkgs.callPackage ./lib/build-docs.nix { inherit transpire; };
         buildHelmChart = pkgs.callPackage ./lib/build-helm-chart.nix { };
         buildKustomization = pkgs.callPackage ./lib/build-kustomization.nix { };
         evalModules = pkgs.callPackage ./lib/eval-modules.nix { inherit transpire; };
+        fetchFromHelm = pkgs.callPackage ./lib/fetch-from-helm.nix { };
 
         # Shortcuts for the most common use cases
         build = {
@@ -29,7 +30,7 @@
       });
 
       packages = forAllSystems (pkgs: transpire: {
-        docs = pkgs.callPackage ./docs { inherit transpire; };
+        docs = transpire.buildDocs { };
       } // import ./generated-openapi-pkgs.nix pkgs);
 
       apps = forAllSystems (pkgs: transpire: {

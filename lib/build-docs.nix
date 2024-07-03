@@ -4,8 +4,9 @@
 , runCommand
 , mdbook
 , transpire
-, ...
 }:
+
+{ openApiSpec ? null }:
 
 let
   # Some helpers for splitting the long list of options into pages
@@ -33,6 +34,7 @@ let
       options._module.args = lib.mkOption { internal = true; };
       config._module.check = false;
     }];
+    inherit openApiSpec;
   };
 
   docList = builtins.filter
@@ -81,7 +83,7 @@ let
 in
 stdenvNoCC.mkDerivation {
   name = "transpire-docs";
-  src = ./.;
+  src = ./docs;
 
   nativeBuildInputs = [
     mdbook
