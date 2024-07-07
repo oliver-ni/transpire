@@ -59,7 +59,7 @@ in
     createNamespace = lib.mkOption {
       type = lib.types.bool;
       description = "Whether to create the v1.Namespace resource.";
-      default = true;
+      default = false;
     };
 
     overrideNamespace = lib.mkOption {
