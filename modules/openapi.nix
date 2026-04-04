@@ -41,6 +41,60 @@ let
       baseType ? getSubModules && baseType ? substSubModules
     );
 
+  # Sort items by dependency depth, where dependencies are determined by
+  # $(VAR_NAME) references in string `value` fields. This ensures that
+  # env vars referencing other env vars via Kubernetes variable interpolation
+  # are placed after the vars they reference. For non-env items (containers,
+  # volumes, etc.), no references are found so this degrades to alphabetical.
+  sortByVarRefs =
+    items:
+    let
+      nameSet = builtins.listToAttrs (map (item: { name = item.name; value = true; }) items);
+
+      extractRefs =
+        str:
+        let
+          parts = builtins.split "\\$\\(([A-Za-z_][A-Za-z0-9_]*)\\)" str;
+        in
+        builtins.filter (ref: nameSet ? ${ref}) (
+          lib.concatMap (part: if builtins.isList part then part else [ ]) parts
+        );
+
+      getItemRefs =
+        item:
+        let
+          v = item.value or null;
+        in
+        if builtins.isString v then extractRefs v else [ ];
+
+      itemsByName = builtins.listToAttrs (map (item: { name = item.name; value = item; }) items);
+
+      depthOf =
+        name:
+        let
+          refs = getItemRefs itemsByName.${name};
+        in
+        if refs == [ ] then
+          0
+        else
+          1 + builtins.foldl' (acc: ref: let d = depthOf ref; in if d > acc then d else acc) 0 refs;
+
+      depths = builtins.listToAttrs (
+        map (item: {
+          name = item.name;
+          value = depthOf item.name;
+        }) items
+      );
+    in
+    lib.sort (
+      a: b:
+      let
+        da = depths.${a.name};
+        db = depths.${b.name};
+      in
+      da < db || (da == db && a.name < b.name)
+    ) items;
+
   # OpenAPI arrays become lists in Nix. If the array is a Kubernetes list-map
   # keyed by "name", it becomes an attribute set for better ergonomics.
   # Lists are also accepted and coerced to attribute sets for compatibility
@@ -90,7 +144,12 @@ let
                 description = propDef.description or name;
               }
               // lib.optionalAttrs (isNameIndexedList self propDef) {
-                apply = value: if value == null then null else lib.mapAttrsToList (n: v: v // { name = n; }) value;
+                apply =
+                  value:
+                  if value == null then
+                    null
+                  else
+                    sortByVarRefs (lib.mapAttrsToList (n: v: v // { name = n; }) value);
               }
             )
           )

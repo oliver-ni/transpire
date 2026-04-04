@@ -76,15 +76,14 @@
         "systems": "systems_2"
       },
       "locked": {
-        "lastModified": 0,
-        "narHash": "sha256-lRJcyMCctoN/LMCVRJEeBY28+NhBDpn5MnZqDACdxVs=",
         "path": "..",
         "type": "path"
       },
       "original": {
         "path": "..",
         "type": "path"
-      }
+      },
+      "parent": []
     }
   },
   "root": "root",
