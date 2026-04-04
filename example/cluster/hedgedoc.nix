@@ -20,28 +20,30 @@
       selector.matchLabels.app = "hedgedoc";
       template = {
         metadata.labels.app = "hedgedoc";
-        spec.containers = [{
-          name = "hedgedoc";
+        spec.containers.hedgedoc = {
           image = "quay.io/hedgedoc/hedgedoc:latest";
-          ports = [{ containerPort = 3000; }];
-          env = [
-            { name = "CMD_DB_USERNAME"; value = "hedgedoc"; }
-            {
-              name = "CMD_DB_PASSWORD";
-              valueFrom.secretKeyRef = { name = "postgres-postgresql"; key = "password"; };
-            }
-            { name = "CMD_DB_DATABASE"; value = "hedgedoc"; }
-            { name = "CMD_DB_HOST"; value = "postgres-postgresql"; }
-            { name = "CMD_DB_PORT"; value = "5432"; }
-            { name = "CMD_DB_DIALECT"; value = "postgres"; }
-            { name = "CMD_DOMAIN"; value = "dev-notes.ocf.berkeley.edu"; }
-          ];
-        }];
+          ports = [ { containerPort = 3000; } ];
+          env.CMD_DB_USERNAME.value = "hedgedoc";
+          env.CMD_DB_PASSWORD.valueFrom.secretKeyRef = {
+            name = "postgres-postgresql";
+            key = "password";
+          };
+          env.CMD_DB_DATABASE.value = "hedgedoc";
+          env.CMD_DB_HOST.value = "postgres-postgresql";
+          env.CMD_DB_PORT.value = "5432";
+          env.CMD_DB_DIALECT.value = "postgres";
+          env.CMD_DOMAIN.value = "dev-notes.ocf.berkeley.edu";
+        };
       };
     };
 
     resources.v1.Service.hedgedoc.spec = {
-      ports = [{ port = 80; targetPort = 3000; }];
+      ports = [
+        {
+          port = 80;
+          targetPort = 3000;
+        }
+      ];
       selector.app = "hedgedoc";
     };
 
@@ -51,21 +53,27 @@
         "cert-manager.io/cluster-issuer" = "letsencrypt";
       };
       spec = {
-        rules = [{
-          host = "dev-notes.ocf.berkeley.edu";
-          http.paths = [{
-            path = "/";
-            pathType = "Prefix";
-            backend.service = {
-              name = "hedgedoc";
-              port.number = 80;
-            };
-          }];
-        }];
-        tls = [{
-          hosts = [ "dev-notes.ocf.berkeley.edu" ];
-          secretName = "dev-notes-tls";
-        }];
+        rules = [
+          {
+            host = "dev-notes.ocf.berkeley.edu";
+            http.paths = [
+              {
+                path = "/";
+                pathType = "Prefix";
+                backend.service = {
+                  name = "hedgedoc";
+                  port.number = 80;
+                };
+              }
+            ];
+          }
+        ];
+        tls = [
+          {
+            hosts = [ "dev-notes.ocf.berkeley.edu" ];
+            secretName = "dev-notes-tls";
+          }
+        ];
       };
     };
   };

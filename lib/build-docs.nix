@@ -1,19 +1,32 @@
-{ lib
-, stdenvNoCC
-, writeText
-, runCommand
-, mdbook
-, transpire
+{
+  lib,
+  stdenvNoCC,
+  writeText,
+  runCommand,
+  mdbook,
+  transpire,
 }:
 
-{ openApiSpec ? null }:
+{
+  openApiSpec ? null,
+}:
 
 let
   # Some helpers for splitting the long list of options into pages
 
   chapterPats = [
-    [ "namespaces" "<name>" "resources" "*" "*" ]
-    [ "namespaces" "<name>" "*" ]
+    [
+      "namespaces"
+      "<name>"
+      "resources"
+      "*"
+      "*"
+    ]
+    [
+      "namespaces"
+      "<name>"
+      "*"
+    ]
     [ "*" ]
   ];
 
@@ -21,25 +34,27 @@ let
   locMatchesPat = loc: pat: lib.all lib.id (lib.zipListsWith locSegMatchesPatSeg loc pat);
   locToName = loc: lib.concatStringsSep "." (map lib.strings.escapeNixIdentifier loc);
 
-  chapterName = opt: locToName
-    (lib.zipListsWith
-      (_: locSeg: locSeg)
-      (lib.findFirst (locMatchesPat opt.loc) [ ] chapterPats)
-      opt.loc);
+  chapterName =
+    opt:
+    locToName (
+      lib.zipListsWith (_: locSeg: locSeg) (lib.findFirst (locMatchesPat opt.loc) [ ] chapterPats) opt.loc
+    );
 
   # Generate docs and split into pages
 
   eval = transpire.evalModules {
-    modules = [{
-      options._module.args = lib.mkOption { internal = true; };
-      config._module.check = false;
-    }];
+    modules = [
+      {
+        options._module.args = lib.mkOption { internal = true; };
+        config._module.check = false;
+      }
+    ];
     inherit openApiSpec;
   };
 
-  docList = builtins.filter
-    (opt: opt.visible && !opt.internal)
-    (lib.optionAttrSetToDocList eval.options);
+  docList = builtins.filter (opt: opt.visible && !opt.internal) (
+    lib.optionAttrSetToDocList eval.options
+  );
 
   docPages = builtins.groupBy chapterName docList;
 
@@ -49,24 +64,52 @@ let
   # derivations, slowing down the build. Instead, we now generate a single
   # derivation that writes all pages at once.
 
-  mdEscape = text: lib.escape [ "*" "<" "[" "`" "." "#" "&" "\\" ] text;
-  pathEscape = text: builtins.replaceStrings [ "/" "'" "\"" "<" ">" ] [ "-" "-" "-" "-" "-" ] text;
+  mdEscape =
+    text:
+    lib.escape [
+      "*"
+      "<"
+      "["
+      "`"
+      "."
+      "#"
+      "&"
+      "\\"
+    ] text;
+  pathEscape =
+    text:
+    builtins.replaceStrings
+      [
+        "/"
+        "'"
+        "\""
+        "<"
+        ">"
+      ]
+      [
+        "-"
+        "-"
+        "-"
+        "-"
+        "-"
+      ]
+      text;
 
-  renderOption = opt: (
-    "## ${mdEscape opt.name}\n\n"
-    + opt.description
-    + "\n\n*Type:* ${opt.type}"
-    + lib.optionalString opt.readOnly "*(read only)*"
-    + lib.optionalString (opt ? default) "\n\n*Default:* `${opt.default.text}`"
-  );
+  renderOption =
+    opt:
+    (
+      "## ${mdEscape opt.name}\n\n"
+      + opt.description
+      + "\n\n*Type:* ${opt.type}"
+      + lib.optionalString opt.readOnly "*(read only)*"
+      + lib.optionalString (opt ? default) "\n\n*Default:* `${opt.default.text}`"
+    );
 
-  pages = lib.mapAttrs
-    (name: opts: (lib.concatStringsSep "\n\n\n" (map renderOption opts)))
-    docPages;
+  pages = lib.mapAttrs (name: opts: (lib.concatStringsSep "\n\n\n" (map renderOption opts))) docPages;
 
-  pageCommands = lib.mapAttrsToList
-    (name: text: "echo -n ${lib.escapeShellArg text} > $out/'${pathEscape name}.md' ")
-    pages;
+  pageCommands = lib.mapAttrsToList (
+    name: text: "echo -n ${lib.escapeShellArg text} > $out/'${pathEscape name}.md' "
+  ) pages;
 
   referenceDrv = runCommand "transpire-reference" { } ''
     mkdir -p $out
@@ -76,18 +119,17 @@ let
   # Append links to every page to the SUMMARY.md file.
   # This allows mdBook to find our page.
 
-  summaryExtDrv = writeText "SUMMARY-ext.md" (lib.concatLines
-    (lib.mapAttrsToList
-      (name: _: "  - [${mdEscape name}](reference/${pathEscape name}.md)")
-      docPages));
+  summaryExtDrv = writeText "SUMMARY-ext.md" (
+    lib.concatLines (
+      lib.mapAttrsToList (name: _: "  - [${mdEscape name}](reference/${pathEscape name}.md)") docPages
+    )
+  );
 in
 stdenvNoCC.mkDerivation {
   name = "transpire-docs";
   src = ./docs;
 
-  nativeBuildInputs = [
-    mdbook
-  ];
+  nativeBuildInputs = [ mdbook ];
 
   buildPhase = ''
     ln -s ${referenceDrv} src/reference

@@ -1,10 +1,12 @@
 pkgs:
 
 let
-  fetchOpenApi = rev: sha256: pkgs.fetchurl {
-    inherit sha256;
-    url = "https://raw.githubusercontent.com/kubernetes/kubernetes/${rev}/api/openapi-spec/swagger.json";
-  };
+  fetchOpenApi =
+    rev: sha256:
+    pkgs.fetchurl {
+      inherit sha256;
+      url = "https://raw.githubusercontent.com/kubernetes/kubernetes/${rev}/api/openapi-spec/swagger.json";
+    };
 in
 {
   "openapi-v1.35.3" = fetchOpenApi "v1.35.3" "sha256-SDUAFJ7lLOV1PXX1Y5EB2YW7T16QLMBbG6didGXWJEY=";

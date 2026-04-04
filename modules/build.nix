@@ -1,49 +1,74 @@
-{ pkgs, lib, config, ... }:
+{
+  pkgs,
+  lib,
+  config,
+  ...
+}:
 
 let
   # Recursively remove any keys where the value is `null` from all nested
   # attrsets, including those in lists.
-  removeNullRecursive = value:
+  removeNullRecursive =
+    value:
     if builtins.isList value then
       map removeNullRecursive value
     else if builtins.isAttrs value then
-      lib.filterAttrsRecursive
-        (name: value: value != null)
-        (lib.mapAttrsRecursive (_: removeNullRecursive) value)
-    else value;
+      lib.filterAttrsRecursive (name: value: value != null) (
+        lib.mapAttrsRecursive (_: removeNullRecursive) value
+      )
+    else
+      value;
 
   # Like lib.mapAttrsToList, but flattens the resulting list
-  concatMapAttrsToList = f: attrs: builtins.concatMap
-    (name: f name attrs.${name})
-    (builtins.attrNames attrs);
+  concatMapAttrsToList =
+    f: attrs: builtins.concatMap (name: f name attrs.${name}) (builtins.attrNames attrs);
 
   # Adds metadata from the object's config path
-  tagObject = { overrideNamespace }: { namespace, apiVersion, kind, name, object }:
+  tagObject =
+    { overrideNamespace }:
+    {
+      namespace,
+      apiVersion,
+      kind,
+      name,
+      object,
+    }:
     let
       metadata =
-        if overrideNamespace
-        then { inherit name; } // (object.metadata or { }) // { inherit namespace; }
-        else { inherit name namespace; } // (object.metadata or { });
+        if overrideNamespace then
+          { inherit name; } // (object.metadata or { }) // { inherit namespace; }
+        else
+          { inherit name namespace; } // (object.metadata or { });
     in
     object // { inherit apiVersion kind metadata; };
 
   # Transforms structured config to a list of raw objects by namespace
-  rawObjectsByNs = builtins.mapAttrs
-    (namespace: nsModule: concatMapAttrsToList
-      (apiVersion: kinds: concatMapAttrsToList
-        (kind: objects: lib.mapAttrsToList
-          (name: object: lib.pipe
-            (tagObject
-              { inherit (nsModule) overrideNamespace; }
-              { inherit namespace apiVersion kind name object; })
-            config.transforms)
-          objects)
-        kinds)
-      nsModule.objects)
-    (removeNullRecursive config.namespaces);
+  rawObjectsByNs = builtins.mapAttrs (
+    namespace: nsModule:
+    concatMapAttrsToList (
+      apiVersion: kinds:
+      concatMapAttrsToList (
+        kind: objects:
+        lib.mapAttrsToList (
+          name: object:
+          lib.pipe (tagObject { inherit (nsModule) overrideNamespace; } {
+            inherit
+              namespace
+              apiVersion
+              kind
+              name
+              object
+              ;
+          }) config.transforms
+        ) objects
+      ) kinds
+    ) nsModule.objects
+  ) (removeNullRecursive config.namespaces);
 
   # Generates a unique filename for an object
-  generateFilename = object: "${object.metadata.namespace}_${object.apiVersion}_${object.kind}_${object.metadata.name}.yaml";
+  generateFilename =
+    object:
+    "${object.metadata.namespace}_${object.apiVersion}_${object.kind}_${object.metadata.name}.yaml";
 
   # To create the output derivations, we generate a command for each object.
   # Then, for every namespace, we join these commands into a single script that
@@ -53,27 +78,29 @@ let
   # `pkgs.linkFarmFromDrvs` to create the output derivations. However, that 
   # created a derivation for each object, which was slow.
 
-  pathEscape = text: builtins.concatStringsSep "-"
-    (builtins.filter builtins.isString
-      (builtins.split "[^A-Za-z0-9._-]" text));
+  pathEscape =
+    text:
+    builtins.concatStringsSep "-" (
+      builtins.filter builtins.isString (builtins.split "[^A-Za-z0-9._-]" text)
+    );
 
-  buildObjectCommand = object:
+  buildObjectCommand =
+    object:
     let
       filename = generateFilename object;
       value = builtins.toJSON object;
     in
     "${pkgs.json2yaml}/bin/json2yaml <<< ${lib.escapeShellArg value} > $out/'${pathEscape filename}'";
 
-  buildCommandsByNs = builtins.mapAttrs
-    (namespace: map buildObjectCommand)
-    rawObjectsByNs;
+  buildCommandsByNs = builtins.mapAttrs (namespace: map buildObjectCommand) rawObjectsByNs;
 
-  builtNamespaces = builtins.mapAttrs
-    (namespace: commands: pkgs.runCommand namespace { } ''
+  builtNamespaces = builtins.mapAttrs (
+    namespace: commands:
+    pkgs.runCommand namespace { } ''
       mkdir -p $out
       ${builtins.concatStringsSep "\n" commands}
-    '')
-    buildCommandsByNs;
+    ''
+  ) buildCommandsByNs;
 in
 {
   options = {

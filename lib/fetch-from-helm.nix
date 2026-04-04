@@ -1,10 +1,15 @@
-{ lib, stdenvNoCC, kubernetes-helm }:
+{
+  lib,
+  stdenvNoCC,
+  kubernetes-helm,
+}:
 
 lib.makeOverridable (
-  { repo
-  , name
-  , version
-  , sha256 ? lib.fakeSha256
+  {
+    repo,
+    name,
+    version,
+    sha256 ? lib.fakeSha256,
   }:
 
   stdenvNoCC.mkDerivation {

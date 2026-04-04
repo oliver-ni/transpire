@@ -1,13 +1,18 @@
-{ lib, stdenvNoCC, kubernetes-helm }:
+{
+  lib,
+  stdenvNoCC,
+  kubernetes-helm,
+}:
 
 lib.makeOverridable (
-  { name
-  , chart
-  , namespace ? null
-  , valuesFile ? null
-  , includeCRDs ? false
-  , skipTests ? true
-  , noHooks ? false
+  {
+    name,
+    chart,
+    namespace ? null,
+    valuesFile ? null,
+    includeCRDs ? false,
+    skipTests ? true,
+    noHooks ? false,
   }:
 
   stdenvNoCC.mkDerivation {

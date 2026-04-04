@@ -1,4 +1,13 @@
-{ name, pkgs, lib, config, transpire, openApiSpec, specialArgs, ... }:
+{
+  name,
+  pkgs,
+  lib,
+  config,
+  transpire,
+  openApiSpec,
+  specialArgs,
+  ...
+}:
 
 let
   namespace = name;
@@ -12,25 +21,35 @@ let
     inherit specialArgs;
   };
 
-  manifestsFromHelm = lib.mapAttrsToList
-    (name: value: transpire.buildHelmChart {
+  manifestsFromHelm = lib.mapAttrsToList (
+    name: value:
+    transpire.buildHelmChart {
       inherit name namespace;
-      inherit (value) chart valuesFile includeCRDs skipTests noHooks;
-    })
-    config.helmReleases;
+      inherit (value)
+        chart
+        valuesFile
+        includeCRDs
+        skipTests
+        noHooks
+        ;
+    }
+  ) config.helmReleases;
 
-  manifestsFromKustomize = lib.mapAttrsToList
-    (name: path: transpire.buildKustomization {
+  manifestsFromKustomize = lib.mapAttrsToList (
+    name: path:
+    transpire.buildKustomization {
       inherit name;
       kustomization = path;
-    })
-    config.kustomizations;
+    }
+  ) config.kustomizations;
 
   # Reads one or more documents separated by "---" from a YAML file. Uses IFD.
-  readYAMLDocuments = path:
+  readYAMLDocuments =
+    path:
     let
-      json = pkgs.runCommand "${path}.yaml" { }
-        "${pkgs.yaml2json}/bin/yaml2json < ${lib.escapeShellArg path} > $out";
+      json =
+        pkgs.runCommand "${path}.yaml" { }
+          "${pkgs.yaml2json}/bin/yaml2json < ${lib.escapeShellArg path} > $out";
     in
     lib.pipe json [
       builtins.readFile
@@ -42,11 +61,19 @@ let
 
   resourcesKey = if openApiSpec != null then "resources" else "objects";
 
-  resourcesFromManifests = lib.mkMerge (map
-    ({ apiVersion, kind, metadata, ... }@obj: {
-      ${apiVersion}.${kind}.${metadata.name} = obj;
-    })
-    (builtins.concatMap readYAMLDocuments config.manifests));
+  resourcesFromManifests = lib.mkMerge (
+    map (
+      {
+        apiVersion,
+        kind,
+        metadata,
+        ...
+      }@obj:
+      {
+        ${apiVersion}.${kind}.${metadata.name} = obj;
+      }
+    ) (builtins.concatMap readYAMLDocuments config.manifests)
+  );
 
   resourcesFromCreateNamespace = lib.mkIf config.createNamespace {
     v1.Namespace."${namespace}" = { };

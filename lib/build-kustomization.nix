@@ -1,9 +1,14 @@
-{ lib, stdenvNoCC, kustomize }:
+{
+  lib,
+  stdenvNoCC,
+  kustomize,
+}:
 
 lib.makeOverridable (
-  { name
-  , kustomization
-  , enableHelm ? false
+  {
+    name,
+    kustomization,
+    enableHelm ? false,
   }:
 
   stdenvNoCC.mkDerivation {

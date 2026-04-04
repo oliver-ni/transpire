@@ -1,5 +1,11 @@
 let
-  useVaultSecrets = { apiVersion, kind, metadata, ... }@obj:
+  useVaultSecrets =
+    {
+      apiVersion,
+      kind,
+      metadata,
+      ...
+    }@obj:
     if apiVersion == "v1" && kind == "Secret" then
       {
         inherit metadata;
@@ -15,7 +21,8 @@ let
           };
         };
       }
-    else obj;
+    else
+      obj;
 in
 {
   imports = [
