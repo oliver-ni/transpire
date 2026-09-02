@@ -28,7 +28,7 @@
 
           # Shortcuts for the most common use cases
           build = {
-            __functor = args: (evalModules args).config.build;
+            __functor = _: args: (evalModules args).config.build;
             cluster = args: (evalModules args).config.build.cluster;
             clusterFile = args: (evalModules args).config.build.clusterFile;
           };
