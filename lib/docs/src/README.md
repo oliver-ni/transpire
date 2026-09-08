@@ -34,6 +34,20 @@ Also, see `lib.<system>.evalModules`, `lib.<system>.build`, and `lib.<system>.bu
 
 See the [example](./example/) for a more complex configuration.
 
+### Images
+
+A container image can be given as a string or as an image derivation, such as one built by `pkgs.dockerTools`:
+
+```nix
+namespaces.example.resources."apps/v1".Deployment.hello.spec.template.spec.containers.hello.image =
+  pkgs.dockerTools.streamLayeredImage {
+    name = "ghcr.io/example/hello";
+    contents = [ pkgs.hello ];
+  };
+```
+
+Derivations are rendered as `<imageName>:<imageTag>`, so the manifests change whenever the image does. `build.images` lists every image derivation in use, and `build.pushImages` is a script that pushes them to their registries with skopeo.
+
 ## Roadmap
 
 Transpire is a work in progress! Here's what I'm working on:

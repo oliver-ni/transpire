@@ -1,6 +1,7 @@
 {
   lib,
   config,
+  transpire,
   openApiSpec,
   ...
 }:
@@ -9,6 +10,15 @@ let
   enable = openApiSpec != null;
 
   spec = builtins.fromJSON (builtins.readFile openApiSpec);
+
+  # Properties whose type differs from the spec are marked with the vendor
+  # extension `x-transpire-type`, which `defType` uses as-is.
+  containerImageType = lib.types.either lib.types.str transpire.imageType;
+
+  definitions = lib.recursiveUpdate spec.definitions {
+    "io.k8s.api.core.v1.Container".properties.image.x-transpire-type = containerImageType;
+    "io.k8s.api.core.v1.EphemeralContainer".properties.image.x-transpire-type = containerImageType;
+  };
 
   mkOptionNotRequired =
     { type, ... }@args:
@@ -177,7 +187,9 @@ let
       type = def.type;
       format = def.format or null;
     in
-    if def ? "$ref" then
+    if def ? x-transpire-type then
+      def.x-transpire-type
+    else if def ? "$ref" then
       refType self def."$ref"
     else if def ? type then
       if type == "string" then
@@ -210,7 +222,7 @@ let
   # Find the fixed point, which is the mapping from each definition name to its
   # converted Nix type. We use `lib.fix` to resolve references recursively.
   defTypes = lib.fix (
-    self: lib.mapAttrs (name: def: overridedTypes.${name} or (defType self def)) spec.definitions
+    self: lib.mapAttrs (name: def: overridedTypes.${name} or (defType self def)) definitions
   );
 
   # We only care about real resource definitions. These are the ones with POST
