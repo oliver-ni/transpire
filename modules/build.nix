@@ -2,22 +2,36 @@
   pkgs,
   lib,
   config,
+  transpire,
   ...
 }:
 
 let
-  # Recursively remove any keys where the value is `null` from all nested
-  # attrsets, including those in lists.
-  removeNullRecursive =
+  imageRef = image: "${config.images.registry}/${image.imageName}:${image.imageTag}";
+
+  # Recursively drop `null` attributes and replace image derivations with
+  # their references.
+  toRawValue =
     value:
-    if builtins.isList value then
-      map removeNullRecursive value
+    if transpire.isImage value then
+      imageRef value
+    else if builtins.isList value then
+      map toRawValue value
     else if builtins.isAttrs value then
-      lib.filterAttrsRecursive (name: value: value != null) (
-        lib.mapAttrsRecursive (_: removeNullRecursive) value
-      )
+      lib.mapAttrs (_: toRawValue) (lib.filterAttrs (_: v: v != null) value)
     else
       value;
+
+  collectImages =
+    value:
+    if transpire.isImage value then
+      [ value ]
+    else if builtins.isList value then
+      lib.concatMap collectImages value
+    else if builtins.isAttrs value then
+      lib.concatMap collectImages (builtins.attrValues value)
+    else
+      [ ];
 
   # Like lib.mapAttrsToList, but flattens the resulting list
   concatMapAttrsToList =
@@ -62,8 +76,12 @@ let
           }) config.transforms
         ) objects
       ) kinds
-    ) nsModule.objects
-  ) (removeNullRecursive config.namespaces);
+    ) (toRawValue nsModule.objects)
+  ) config.namespaces;
+
+  images = lib.unique (
+    lib.concatMap (nsModule: collectImages nsModule.objects) (builtins.attrValues config.namespaces)
+  );
 
   # Generates a unique filename for an object
   generateFilename =
@@ -125,18 +143,51 @@ in
         readOnly = true;
         description = "(Output) All YAML objects merged into a single file.";
       };
+      images = lib.mkOption {
+        type = lib.types.listOf transpire.imageType;
+        readOnly = true;
+        description = "(Output) Image derivations referenced by any object.";
+      };
+      pushImages = lib.mkOption {
+        type = lib.types.package;
+        readOnly = true;
+        description = "(Output) Script that pushes every image in `images` to `images.registry` with skopeo. Extra arguments are passed to `skopeo copy`.";
+      };
     };
   };
 
   config.build = rec {
     objects = lib.concatLists (builtins.attrValues rawObjectsByNs);
     namespaces = builtNamespaces;
-    cluster = pkgs.linkFarmFromDrvs "cluster" (lib.attrValues namespaces);
+    cluster = (pkgs.linkFarmFromDrvs "cluster" (lib.attrValues namespaces)).overrideAttrs {
+      passthru = {
+        inherit images pushImages;
+      };
+    };
     clusterFile = pkgs.runCommand "cluster.yaml" { } ''
       for i in ${cluster}/*/*.yaml; do
         echo "---" >> $out;
         cat $i >> $out;
       done
     '';
+    inherit images;
+    pushImages = pkgs.writeShellApplication {
+      name = "push-images";
+      runtimeInputs = [ pkgs.skopeo ];
+      text =
+        ''
+          # Streaming builders produce an executable that writes the archive to stdout.
+          push() {
+            local image=$1 dest=$2
+            shift 2
+            if [ -x "$image" ]; then
+              "$image" | skopeo --insecure-policy copy "$@" docker-archive:/dev/stdin "$dest"
+            else
+              skopeo --insecure-policy copy "$@" "docker-archive:$image" "$dest"
+            fi
+          }
+        ''
+        + lib.concatLines (map (image: ''push ${image} docker://${imageRef image} "$@"'') images);
+    };
   };
 }

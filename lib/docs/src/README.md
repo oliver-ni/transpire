@@ -34,6 +34,30 @@ Also, see `lib.<system>.evalModules`, `lib.<system>.build`, and `lib.<system>.bu
 
 See the [example](./example/) for a more complex configuration.
 
+### Images
+
+A container image can be given as a string or as an image derivation, such as one built by `pkgs.dockerTools`:
+
+```nix
+images.registry = "ghcr.io/example";
+
+namespaces.example.resources."apps/v1".Deployment.hello.spec.template.spec.containers.hello.image =
+  pkgs.dockerTools.streamLayeredImage {
+    name = "hello";
+    contents = [ pkgs.hello ];
+  };
+```
+
+Derivations are rendered as `<registry>/<imageName>:<imageTag>`, so the manifests change whenever the image does. `build.images` lists every image derivation in use, and `build.pushImages` is a script that pushes them to the registry with skopeo. Both are also available as attributes of `build.cluster`.
+
+Push the images before deploying the manifests. Extra arguments are passed to `skopeo copy`, so in GitHub Actions this is a single step:
+
+```yaml
+- run: nix run .#kubernetes.pushImages -- --dest-creds "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}"
+```
+
+To roll out a new image, update the flake input that provides it (for example with `nix flake update <input>`) and rebuild.
+
 ## Roadmap
 
 Transpire is a work in progress! Here's what I'm working on:
