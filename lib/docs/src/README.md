@@ -48,7 +48,15 @@ namespaces.example.resources."apps/v1".Deployment.hello.spec.template.spec.conta
   };
 ```
 
-Derivations are rendered as `<registry>/<imageName>:<imageTag>`, so the manifests change whenever the image does. `build.images` lists every image derivation in use, and `build.pushImages` is a script that pushes them to the registry with skopeo.
+Derivations are rendered as `<registry>/<imageName>:<imageTag>`, so the manifests change whenever the image does. `build.images` lists every image derivation in use, and `build.pushImages` is a script that pushes them to the registry with skopeo. Both are also available as attributes of `build.cluster`.
+
+Push the images before deploying the manifests. Extra arguments are passed to `skopeo copy`, so in GitHub Actions this is a single step:
+
+```yaml
+- run: nix run .#kubernetes.pushImages -- --dest-creds "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}"
+```
+
+To roll out a new image, update the flake input that provides it (for example with `nix flake update <input>`) and rebuild.
 
 ## Roadmap
 

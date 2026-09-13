@@ -175,7 +175,11 @@ in
   config.build = rec {
     objects = lib.concatLists (builtins.attrValues rawObjectsByNs);
     namespaces = builtNamespaces;
-    cluster = pkgs.linkFarmFromDrvs "cluster" (lib.attrValues namespaces);
+    cluster = (pkgs.linkFarmFromDrvs "cluster" (lib.attrValues namespaces)).overrideAttrs {
+      passthru = {
+        inherit images pushImages;
+      };
+    };
     clusterFile = pkgs.runCommand "cluster.yaml" { } ''
       for i in ${cluster}/*/*.yaml; do
         echo "---" >> $out;
