@@ -83,22 +83,6 @@ let
     lib.concatMap (nsModule: collectImages nsModule.objects) (builtins.attrValues config.namespaces)
   );
 
-  # Streaming builders produce an executable that writes the archive to stdout;
-  # the others produce the archive itself. `buildLayeredImage` inherits `isExe`
-  # from its stream despite producing an archive, so check the output name too.
-  isStream =
-    image: (image.isExe or false) && builtins.match ".*\\.tar(\\.[a-z0-9]+)?" image.name == null;
-
-  pushImageCommand =
-    image:
-    let
-      dest = "docker://${imageRef image}";
-    in
-    if isStream image then
-      ''${image} | skopeo --insecure-policy copy "$@" docker-archive:/dev/stdin ${dest}''
-    else
-      ''skopeo --insecure-policy copy "$@" docker-archive:${image} ${dest}'';
-
   # Generates a unique filename for an object
   generateFilename =
     object:
@@ -190,7 +174,20 @@ in
     pushImages = pkgs.writeShellApplication {
       name = "push-images";
       runtimeInputs = [ pkgs.skopeo ];
-      text = lib.concatLines (map pushImageCommand images);
+      text =
+        ''
+          # Streaming builders produce an executable that writes the archive to stdout.
+          push() {
+            local image=$1 dest=$2
+            shift 2
+            if [ -x "$image" ]; then
+              "$image" | skopeo --insecure-policy copy "$@" docker-archive:/dev/stdin "$dest"
+            else
+              skopeo --insecure-policy copy "$@" "docker-archive:$image" "$dest"
+            fi
+          }
+        ''
+        + lib.concatLines (map (image: ''push ${image} docker://${imageRef image} "$@"'') images);
     };
   };
 }
