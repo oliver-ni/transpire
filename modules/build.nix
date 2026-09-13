@@ -7,12 +7,14 @@
 }:
 
 let
+  imageRef = image: "${config.images.registry}/${image.imageName}:${image.imageTag}";
+
   # Recursively drop `null` attributes and replace image derivations with
   # their references.
   toRawValue =
     value:
     if transpire.isImage value then
-      transpire.imageRef value
+      imageRef value
     else if builtins.isList value then
       map toRawValue value
     else if builtins.isAttrs value then
@@ -90,7 +92,7 @@ let
   pushImageCommand =
     image:
     let
-      dest = "docker://${transpire.imageRef image}";
+      dest = "docker://${imageRef image}";
     in
     if isStream image then
       ''${image} | skopeo --insecure-policy copy "$@" docker-archive:/dev/stdin ${dest}''
@@ -165,7 +167,7 @@ in
       pushImages = lib.mkOption {
         type = lib.types.package;
         readOnly = true;
-        description = "(Output) Script that pushes every image in `images` to its registry with skopeo. Extra arguments are passed to `skopeo copy`.";
+        description = "(Output) Script that pushes every image in `images` to `images.registry` with skopeo. Extra arguments are passed to `skopeo copy`.";
       };
     };
   };
