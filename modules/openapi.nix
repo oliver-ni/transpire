@@ -1,6 +1,7 @@
 {
   lib,
   config,
+  transpire,
   openApiSpec,
   ...
 }:
@@ -10,9 +11,13 @@ let
 
   spec = builtins.fromJSON (builtins.readFile openApiSpec);
 
+  containerImageType = lib.types.either lib.types.str transpire.imageType;
+
   # Definitions whose type differs from the spec are marked with the vendor
   # extension `x-transpire-type`, which `defType` uses as-is.
   definitions = lib.recursiveUpdate spec.definitions {
+    "io.k8s.api.core.v1.Container".properties.image.x-transpire-type = containerImageType;
+    "io.k8s.api.core.v1.EphemeralContainer".properties.image.x-transpire-type = containerImageType;
     # This type recurses on itself, so it would cause a stack overflow.
     "io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.JSONSchemaProps".x-transpire-type =
       lib.types.attrs;
