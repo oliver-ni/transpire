@@ -25,6 +25,7 @@
           buildKustomization = pkgs.callPackage ./lib/build-kustomization.nix { };
           evalModules = pkgs.callPackage ./lib/eval-modules.nix { inherit transpire; };
           fetchFromHelm = pkgs.callPackage ./lib/fetch-from-helm.nix { };
+          imageType = pkgs.callPackage ./lib/image-type.nix { };
 
           # Shortcuts for the most common use cases
           build = {
