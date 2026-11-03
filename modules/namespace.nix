@@ -12,8 +12,8 @@
 let
   namespace = name;
 
-  objectType = lib.types.nullOr (pkgs.formats.yaml { }).type;
-  objectsType = lib.types.attrsOf objectType;
+  valueType = (pkgs.formats.yaml { }).type;
+  objectsType = lib.types.attrsOf valueType;
   kindsType = lib.types.attrsOf objectsType;
 
   helmChartType = lib.types.submoduleWith {
@@ -47,9 +47,9 @@ let
   readYAMLDocuments =
     path:
     let
-      json =
-        pkgs.runCommand "${path}.yaml" { }
-          "${pkgs.yaml2json}/bin/yaml2json < ${lib.escapeShellArg path} > $out";
+      json = pkgs.runCommand "${baseNameOf path}.json" { } ''
+        ${lib.getExe pkgs.yaml2json} < ${lib.escapeShellArg path} > $out
+      '';
     in
     lib.pipe json [
       builtins.readFile
@@ -104,7 +104,7 @@ in
     manifests = lib.mkOption {
       type = lib.types.listOf lib.types.pathInStore;
       description = "List of raw manifests to parse. Useful for fetching from an external source.";
-      default = { };
+      default = [ ];
     };
 
     helmReleases = lib.mkOption {
@@ -115,7 +115,7 @@ in
 
     kustomizations = lib.mkOption {
       type = lib.types.attrsOf lib.types.pathInStore;
-      description = "Attibute set of kustomizations to deploy.";
+      description = "Attribute set of kustomizations to deploy.";
       default = { };
     };
   };
