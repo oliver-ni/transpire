@@ -10,22 +10,27 @@ let
 
   spec = builtins.fromJSON (builtins.readFile openApiSpec);
 
-  mkOptionNotRequired =
-    { type, ... }@args:
-    lib.mkOption (
-      args
-      // {
-        type = lib.types.nullOr type;
-        default = null;
-      }
-    );
+  # Definitions whose type differs from the spec are marked with the vendor
+  # extension `x-transpire-type`, which `defType` uses as-is.
+  definitions = lib.recursiveUpdate spec.definitions {
+    # This type recurses on itself, so it would cause a stack overflow.
+    "io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.JSONSchemaProps".x-transpire-type =
+      lib.types.attrs;
+  };
 
-  mkOptionMaybeRequired =
+  # Properties that aren't required are nullable and default to null.
+  mkPropertyOption =
     required: args:
-    let
-      mkFn = if required then lib.mkOption else mkOptionNotRequired;
-    in
-    mkFn args;
+    lib.mkOption (
+      if required then
+        args
+      else
+        args
+        // {
+          type = lib.types.nullOr args.type;
+          default = null;
+        }
+    );
 
   # Check if a definition is a Kubernetes list-map keyed by "name". These can
   # be represented as attribute sets for better ergonomics and mergeability.
@@ -49,42 +54,21 @@ let
   sortByVarRefs =
     items:
     let
-      nameSet = builtins.listToAttrs (map (item: { name = item.name; value = true; }) items);
+      itemsByName = lib.listToAttrs (map (item: lib.nameValuePair item.name item) items);
 
-      extractRefs =
-        str:
-        let
-          parts = builtins.split "\\$\\(([A-Za-z_][A-Za-z0-9_]*)\\)" str;
-        in
-        builtins.filter (ref: nameSet ? ${ref}) (
-          lib.concatMap (part: if builtins.isList part then part else [ ]) parts
-        );
-
-      getItemRefs =
+      refsOf =
         item:
         let
-          v = item.value or null;
+          value = item.value or null;
+          matches = lib.concatLists (
+            builtins.filter builtins.isList (builtins.split "\\$\\(([A-Za-z_][A-Za-z0-9_]*)\\)" value)
+          );
         in
-        if builtins.isString v then extractRefs v else [ ];
+        if builtins.isString value then builtins.filter (ref: itemsByName ? ${ref}) matches else [ ];
 
-      itemsByName = builtins.listToAttrs (map (item: { name = item.name; value = item; }) items);
+      depthOf = item: lib.foldl' lib.max 0 (map (ref: 1 + depthOf itemsByName.${ref}) (refsOf item));
 
-      depthOf =
-        name:
-        let
-          refs = getItemRefs itemsByName.${name};
-        in
-        if refs == [ ] then
-          0
-        else
-          1 + builtins.foldl' (acc: ref: let d = depthOf ref; in if d > acc then d else acc) 0 refs;
-
-      depths = builtins.listToAttrs (
-        map (item: {
-          name = item.name;
-          value = depthOf item.name;
-        }) items
-      );
+      depths = lib.mapAttrs (_: depthOf) itemsByName;
     in
     lib.sort (
       a: b:
@@ -138,7 +122,7 @@ let
           # not required. We should find a better way to handle this.
           (
             name: propDef:
-            mkOptionMaybeRequired (name != "metadata" && builtins.elem name (def.required or [ ])) (
+            mkPropertyOption (name != "metadata" && builtins.elem name (def.required or [ ])) (
               {
                 type = defType self propDef;
                 description = propDef.description or name;
@@ -146,10 +130,7 @@ let
               // lib.optionalAttrs (isNameIndexedList self propDef) {
                 apply =
                   value:
-                  if value == null then
-                    null
-                  else
-                    sortByVarRefs (lib.mapAttrsToList (n: v: v // { name = n; }) value);
+                  if value == null then null else sortByVarRefs (lib.mapAttrsToList (n: v: v // { name = n; }) value);
               }
             )
           )
@@ -177,7 +158,9 @@ let
       type = def.type;
       format = def.format or null;
     in
-    if def ? "$ref" then
+    if def ? x-transpire-type then
+      def.x-transpire-type
+    else if def ? "$ref" then
       refType self def."$ref"
     else if def ? type then
       if type == "string" then
@@ -202,16 +185,9 @@ let
     else
       lib.types.anything;
 
-  overridedTypes = {
-    # This type recurses on itself, so it will cause a stack overflow.
-    "io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.JSONSchemaProps" = lib.types.attrs;
-  };
-
   # Find the fixed point, which is the mapping from each definition name to its
   # converted Nix type. We use `lib.fix` to resolve references recursively.
-  defTypes = lib.fix (
-    self: lib.mapAttrs (name: def: overridedTypes.${name} or (defType self def)) spec.definitions
-  );
+  defTypes = lib.fix (self: lib.mapAttrs (_: defType self) definitions);
 
   # We only care about real resource definitions. These are the ones with POST
   # operations. Also, ensure we have x-kubernetes-group-version-kind.
@@ -241,10 +217,8 @@ let
 in
 if enable then
   {
-    options.resources = (
-      lib.mapAttrs (name: value: builtins.listToAttrs value) (
-        builtins.groupBy (resource: resource.apiVersion) resourceDefs
-      )
+    options.resources = lib.mapAttrs (_: lib.listToAttrs) (
+      builtins.groupBy (resource: resource.apiVersion) resourceDefs
     );
 
     config.objects = config.resources;

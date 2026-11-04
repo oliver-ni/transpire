@@ -6,101 +6,98 @@
 }:
 
 let
-  # Recursively remove any keys where the value is `null` from all nested
-  # attrsets, including those in lists.
-  removeNullRecursive =
+  # Recursively drop `null` attributes, including in attrsets nested in lists.
+  removeNulls =
     value:
     if builtins.isList value then
-      map removeNullRecursive value
+      map removeNulls value
     else if builtins.isAttrs value then
-      lib.filterAttrsRecursive (name: value: value != null) (
-        lib.mapAttrsRecursive (_: removeNullRecursive) value
-      )
+      lib.mapAttrs (_: removeNulls) (lib.filterAttrs (_: v: v != null) value)
     else
       value;
 
-  # Like lib.mapAttrsToList, but flattens the resulting list
-  concatMapAttrsToList =
-    f: attrs: builtins.concatMap (name: f name attrs.${name}) (builtins.attrNames attrs);
+  # Flattens `<apiVersion>.<kind>.<name> = object` into a list.
+  flattenObjects =
+    objects:
+    lib.concatLists (
+      lib.mapAttrsToList (
+        apiVersion: kinds:
+        lib.concatLists (
+          lib.mapAttrsToList (
+            kind:
+            lib.mapAttrsToList (
+              name: object: {
+                inherit
+                  apiVersion
+                  kind
+                  name
+                  object
+                  ;
+              }
+            )
+          ) kinds
+        )
+      ) objects
+    );
 
-  # Adds metadata from the object's config path
+  # Fills in apiVersion, kind and metadata from the object's config path.
   tagObject =
-    { overrideNamespace }:
+    { namespace, overrideNamespace }:
     {
-      namespace,
       apiVersion,
       kind,
       name,
       object,
     }:
-    let
-      metadata =
-        if overrideNamespace then
-          { inherit name; } // (object.metadata or { }) // { inherit namespace; }
-        else
-          { inherit name namespace; } // (object.metadata or { });
-    in
-    object // { inherit apiVersion kind metadata; };
+    object
+    // {
+      inherit apiVersion kind;
+      metadata = {
+        inherit name namespace;
+      } // object.metadata or { } // lib.optionalAttrs overrideNamespace { inherit namespace; };
+    };
 
   # Transforms structured config to a list of raw objects by namespace
-  rawObjectsByNs = builtins.mapAttrs (
+  rawObjectsByNs = lib.mapAttrs (
     namespace: nsModule:
-    concatMapAttrsToList (
-      apiVersion: kinds:
-      concatMapAttrsToList (
-        kind: objects:
-        lib.mapAttrsToList (
-          name: object:
-          lib.pipe (tagObject { inherit (nsModule) overrideNamespace; } {
-            inherit
-              namespace
-              apiVersion
-              kind
-              name
-              object
-              ;
-          }) config.transforms
-        ) objects
-      ) kinds
-    ) nsModule.objects
-  ) (removeNullRecursive config.namespaces);
+    map (
+      entry:
+      lib.pipe entry (
+        [
+          (tagObject {
+            inherit namespace;
+            inherit (nsModule) overrideNamespace;
+          })
+        ]
+        ++ config.transforms
+      )
+    ) (flattenObjects (removeNulls nsModule.objects))
+  ) config.namespaces;
 
-  # Generates a unique filename for an object
+  # Generates a unique filename for an object, safe to use unquoted in a shell.
   generateFilename =
     object:
-    "${object.metadata.namespace}_${object.apiVersion}_${object.kind}_${object.metadata.name}.yaml";
-
-  # To create the output derivations, we generate a command for each object.
-  # Then, for every namespace, we join these commands into a single script that
-  # builds all objects in that namespace.
-
-  # Originally, we used `pkgs.formats.yaml` to generate the YAML files and 
-  # `pkgs.linkFarmFromDrvs` to create the output derivations. However, that 
-  # created a derivation for each object, which was slow.
-
-  pathEscape =
-    text:
-    builtins.concatStringsSep "-" (
-      builtins.filter builtins.isString (builtins.split "[^A-Za-z0-9._-]" text)
+    lib.concatStringsSep "-" (
+      builtins.filter builtins.isString (
+        builtins.split "[^A-Za-z0-9._-]" (
+          "${object.metadata.namespace}_${object.apiVersion}_${object.kind}_${object.metadata.name}.yaml"
+        )
+      )
     );
 
+  # Each namespace is built by a single derivation that writes all of its
+  # objects, since a derivation per object is slow.
   buildObjectCommand =
     object:
-    let
-      filename = generateFilename object;
-      value = builtins.toJSON object;
-    in
-    "${pkgs.json2yaml}/bin/json2yaml <<< ${lib.escapeShellArg value} > $out/'${pathEscape filename}'";
+    "${lib.getExe pkgs.json2yaml} <<< ${lib.escapeShellArg (builtins.toJSON object)} > $out/${generateFilename object}";
 
-  buildCommandsByNs = builtins.mapAttrs (namespace: map buildObjectCommand) rawObjectsByNs;
-
-  builtNamespaces = builtins.mapAttrs (
-    namespace: commands:
+  builtNamespaces = lib.mapAttrs (
+    namespace: objects:
     pkgs.runCommand namespace { } ''
       mkdir -p $out
-      ${builtins.concatStringsSep "\n" commands}
+      ${lib.concatMapStringsSep "\n" buildObjectCommand objects}
     ''
-  ) buildCommandsByNs;
+  ) rawObjectsByNs;
 in
 {
   options = {
@@ -129,7 +126,7 @@ in
   };
 
   config.build = rec {
-    objects = lib.concatLists (builtins.attrValues rawObjectsByNs);
+    objects = lib.concatLists (lib.attrValues rawObjectsByNs);
     namespaces = builtNamespaces;
     cluster = pkgs.linkFarmFromDrvs "cluster" (lib.attrValues namespaces);
     clusterFile = pkgs.runCommand "cluster.yaml" { } ''

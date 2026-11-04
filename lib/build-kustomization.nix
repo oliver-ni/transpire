@@ -16,8 +16,7 @@ lib.makeOverridable (
     nativeBuildInputs = [ kustomize ];
 
     buildCommand = ''
-      kustomize build ${kustomization} > $out \
-        ${lib.optionalString enableHelm "--enable-helm"} 
+      kustomize build ${kustomization} ${lib.optionalString enableHelm "--enable-helm"} > $out
     '';
   }
 )
