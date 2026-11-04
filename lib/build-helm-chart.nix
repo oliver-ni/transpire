@@ -16,7 +16,7 @@ lib.makeOverridable (
   }:
 
   stdenvNoCC.mkDerivation {
-    name = "helm-${chart.version}-${name}";
+    name = if chart ? version then "helm-${chart.version}-${name}" else "helm-${name}";
     nativeBuildInputs = [ kubernetes-helm ];
 
     buildCommand = ''
