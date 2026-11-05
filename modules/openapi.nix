@@ -183,14 +183,9 @@ let
       if type == "string" then
         if format == "int-or-string" then lib.types.either lib.types.int lib.types.str else lib.types.str
       else if type == "integer" then
-        lib.types.int
+        if format == "int32" then lib.types.ints.s32 else lib.types.int
       else if type == "number" then
-        if format == "int32" then
-          lib.types.ints.s32
-        else if format == "int64" then
-          lib.types.ints.s64
-        else
-          lib.types.number
+        lib.types.number
       else if type == "boolean" then
         lib.types.bool
       else if type == "array" then
