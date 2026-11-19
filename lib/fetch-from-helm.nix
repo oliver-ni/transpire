@@ -14,7 +14,7 @@ lib.makeOverridable (
 
   stdenvNoCC.mkDerivation {
     pname = "helm-${name}";
-    version = version;
+    inherit version;
     nativeBuildInputs = [ kubernetes-helm ];
 
     buildCommand = ''

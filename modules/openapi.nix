@@ -49,14 +49,14 @@ let
   sortByVarRefs =
     items:
     let
-      nameSet = builtins.listToAttrs (map (item: { name = item.name; value = true; }) items);
+      itemsByName = builtins.listToAttrs (map (item: { name = item.name; value = item; }) items);
 
       extractRefs =
         str:
         let
           parts = builtins.split "\\$\\(([A-Za-z_][A-Za-z0-9_]*)\\)" str;
         in
-        builtins.filter (ref: nameSet ? ${ref}) (
+        builtins.filter (ref: itemsByName ? ${ref}) (
           lib.concatMap (part: if builtins.isList part then part else [ ]) parts
         );
 
@@ -66,8 +66,6 @@ let
           v = item.value or null;
         in
         if builtins.isString v then extractRefs v else [ ];
-
-      itemsByName = builtins.listToAttrs (map (item: { name = item.name; value = item; }) items);
 
       depthOf =
         name:
