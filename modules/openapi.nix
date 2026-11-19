@@ -1,6 +1,7 @@
 {
   lib,
   config,
+  transpire,
   openApiSpec,
   ...
 }:
@@ -9,6 +10,18 @@ let
   enable = openApiSpec != null;
 
   spec = builtins.fromJSON (builtins.readFile openApiSpec);
+
+  containerImageType = lib.types.either lib.types.str transpire.imageType;
+
+  # Definitions whose Nix type differs from the spec are marked with the vendor
+  # extension `x-transpire-type`, which `defType` uses as-is.
+  definitions = lib.recursiveUpdate spec.definitions {
+    "io.k8s.api.core.v1.Container".properties.image.x-transpire-type = containerImageType;
+    "io.k8s.api.core.v1.EphemeralContainer".properties.image.x-transpire-type = containerImageType;
+    # This type recurses on itself, so it will cause a stack overflow.
+    "io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.JSONSchemaProps".x-transpire-type =
+      lib.types.attrs;
+  };
 
   mkOptionNotRequired =
     { type, ... }@args:
@@ -175,7 +188,9 @@ let
       type = def.type;
       format = def.format or null;
     in
-    if def ? "$ref" then
+    if def ? x-transpire-type then
+      def.x-transpire-type
+    else if def ? "$ref" then
       refType self def."$ref"
     else if def ? type then
       if type == "string" then
@@ -200,16 +215,9 @@ let
     else
       lib.types.anything;
 
-  overridedTypes = {
-    # This type recurses on itself, so it will cause a stack overflow.
-    "io.k8s.apiextensions-apiserver.pkg.apis.apiextensions.v1.JSONSchemaProps" = lib.types.attrs;
-  };
-
   # Find the fixed point, which is the mapping from each definition name to its
   # converted Nix type. We use `lib.fix` to resolve references recursively.
-  defTypes = lib.fix (
-    self: lib.mapAttrs (name: def: overridedTypes.${name} or (defType self def)) spec.definitions
-  );
+  defTypes = lib.fix (self: lib.mapAttrs (name: defType self) definitions);
 
   # We only care about real resource definitions. These are the ones with POST
   # operations. Also, ensure we have x-kubernetes-group-version-kind.
