@@ -34,6 +34,31 @@ Also, see `lib.<system>.evalModules`, `lib.<system>.build`, and `lib.<system>.bu
 
 See the [example](./example/) for a more complex configuration.
 
+### Images
+
+Container images may be specified as a string or as an image derivation from `pkgs.dockerTools` or nix2container:
+
+```nix
+images.registry = "ghcr.io/example";
+
+namespaces.example.resources."apps/v1".Deployment.hello.spec.template.spec.containers.hello.image =
+  pkgs.dockerTools.streamLayeredImage {
+    name = "hello";
+    contents = [ pkgs.hello ];
+  };
+```
+
+Image derivations are rendered as `<registry>/<imageName>:<imageTag>`, where `images.registry` is a required option and `imageTag` defaults to the derivation's store hash. Changing the image therefore changes the manifest.
+
+Image derivations are accepted in `Container.image`, `EphemeralContainer.image`, and objects without a schema. Other fields, such as string fields of custom resources and Helm values, still take a string.
+
+`build.images` lists the image derivations referenced by the cluster, including those added by transforms, and `build.pushImages` is a script that builds and pushes them using skopeo. Images with the default tag, a store hash, are skipped when the tag is already in the registry; images with a custom tag are always pushed. Both are also exposed as attributes of `build.cluster`. The script uses the credentials saved by `skopeo login` or `docker login`:
+
+```yaml
+- run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+- run: nix run .#default.pushImages
+```
+
 ## Roadmap
 
 Transpire is a work in progress! Here's what I'm working on:

@@ -12,7 +12,22 @@
 let
   namespace = name;
 
-  objectType = lib.types.nullOr (pkgs.formats.yaml { }).type;
+  # The value type of `pkgs.formats.yaml`, extended with image derivations.
+  objectType =
+    with lib.types;
+    nullOr (oneOf [
+      bool
+      int
+      float
+      str
+      path
+      transpire.imageType
+      (attrsOf objectType)
+      (listOf objectType)
+    ])
+    // {
+      description = "YAML value or image derivation";
+    };
   objectsType = lib.types.attrsOf objectType;
   kindsType = lib.types.attrsOf objectsType;
 

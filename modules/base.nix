@@ -20,5 +20,11 @@ in
       description = "Transforms to apply to the objects.";
       default = [ ];
     };
+
+    images.registry = lib.mkOption {
+      type = lib.types.str;
+      description = "Registry that image derivations are pushed to and referenced from.";
+      example = "ghcr.io/example";
+    };
   };
 }
