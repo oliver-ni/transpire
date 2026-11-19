@@ -104,7 +104,7 @@ in
     manifests = lib.mkOption {
       type = lib.types.listOf lib.types.pathInStore;
       description = "List of raw manifests to parse. Useful for fetching from an external source.";
-      default = { };
+      default = [ ];
     };
 
     helmReleases = lib.mkOption {
@@ -115,7 +115,7 @@ in
 
     kustomizations = lib.mkOption {
       type = lib.types.attrsOf lib.types.pathInStore;
-      description = "Attibute set of kustomizations to deploy.";
+      description = "Attribute set of kustomizations to deploy.";
       default = { };
     };
   };
